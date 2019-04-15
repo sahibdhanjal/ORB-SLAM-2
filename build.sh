@@ -1,3 +1,14 @@
+echo "Configuring and building Thirdparty/Pangolin ..."
+cd Thirdparty/
+git clone https://github.com/stevenlovegrove/Pangolin.git
+cd Pangolin
+mkdir build
+cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release
+make -j
+
+cd ../../../
+
 echo "Configuring and building Thirdparty/DBoW2 ..."
 
 cd Thirdparty/DBoW2
