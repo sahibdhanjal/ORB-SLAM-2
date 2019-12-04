@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<launch>
+    <arg name="settings" default="/home/sahib/Downloads/BagFiles/magna.yaml" />
+    <arg name="vocabulary" default="/home/sahib/Documents/ORBSlam/Vocabulary/ORBvoc.txt" />
+
+    <node pkg="orb_slam" name="mono_slam" type="mono_slam" output="screen" >
+        <remap from="/camera/image_raw" to="/VIDImg_Left" />
+        <param name="VOCAB_FILE" value="$(arg vocabulary)" />
+        <param name="SETTINGS_FILE" value="$(arg settings)" />
+    </node>
+
+</launch>
