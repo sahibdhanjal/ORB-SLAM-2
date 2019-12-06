@@ -55,8 +55,8 @@ void ImageGrabber::GrabImage(const sensor_msgs::ImageConstPtr& msg)
 
     cv::Mat pose = mpSLAM->TrackMonocular(cv_ptr->image,cv_ptr->header.stamp.toSec());
 
+    // Publish Camera Pose to ROS
     if(pose.empty()) return;
-
     tf::Matrix3x3 rh_cameraPose(-pose.at<float>(0,0),  pose.at<float>(0,1),  pose.at<float>(0,2),
                                 -pose.at<float>(1,0),  pose.at<float>(1,1),  pose.at<float>(1,2),
                                  pose.at<float>(2,0), -pose.at<float>(2,1), -pose.at<float>(2,2));
@@ -75,6 +75,23 @@ void ImageGrabber::GrabImage(const sensor_msgs::ImageConstPtr& msg)
     p.pose.orientation.w = q[3];
     pose_pub.publish(p);
 
+    // Publish PointCloud to ROS
+    sensor_msgs::PointCloud pointcloud;
+    pointcloud.header.frame_id = "world";
+    std::vector<geometry_msgs::Point32> geo_points;
+    std::vector<ORB_SLAM2::MapPoint*> points = mpSLAM->GetTrackedMapPoints();
+    for (std::vector<int>::size_type i = 0; i != points.size(); i++) {
+        if (points[i]) {
+            cv::Mat coords = points[i]->GetWorldPos();
+            geometry_msgs::Point32 pt;
+            pt.x = coords.at<float>(0);
+            pt.y = coords.at<float>(1);
+            pt.z = coords.at<float>(2);
+            geo_points.push_back(pt);
+        }
+    }
+    pointcloud.points = geo_points;
+    pointcloud_pub.publish(pointcloud);
 }
 
 int main(int argc, char **argv)
