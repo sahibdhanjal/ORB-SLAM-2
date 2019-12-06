@@ -1,9 +1,0 @@
-<?xml version="1.0"?>
-<launch>
-    <arg name="settings" default="${HOME}/Downloads/BagFiles/magna.yaml" />
-    <arg name="vocabulary" default="${HOME}/Documents/ORBSlam/Vocabulary/ORBvoc.txt" />
-
-    <node pkg="ORB_SLAM2" name="Mono" type="Mono" args="$(arg vocabulary) $(arg settings)">
-        <remap from="/camera/image_raw" to="/VIDImg_Left" />
-    </node>
-</launch>

@@ -19,6 +19,13 @@ Thirdparty/g2o/config.h
 Thirdparty/g2o/lib/
 Vocabulary/ORBvoc.txt
 build/
+*/build/
+*/devel/
+*/logs/
+*/.catkin_tools/
+.idea/
+cmake_modules/
+cmake-build-debug/
 *~
 lib/
 

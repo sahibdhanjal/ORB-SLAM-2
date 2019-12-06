@@ -19,14 +19,16 @@
 */
 
 
-#include<iostream>
-#include<algorithm>
-#include<fstream>
-#include<chrono>
+#include <iostream>
+#include <algorithm>
+#include <fstream>
+#include <chrono>
 
-#include<ros/ros.h>
+#include <ros/ros.h>
 #include <cv_bridge/cv_bridge.h>
-#include<opencv2/core/core.hpp>
+#include <opencv2/core/core.hpp>
+#include <sensor_msgs/PointCloud.h>
+#include <nav_msgs/Path.h>
 
 #include"../../../include/System.h"
 
@@ -41,6 +43,9 @@ public:
     ImageGrabber(ORB_SLAM2::System* pSLAM):mpSLAM(pSLAM){}
 
     void GrabImage(const sensor_msgs::ImageConstPtr& msg);
+    void GrabTrajectory(const nav_msgs::Path& msg);
+    void GrabPointCloud(const sensor_msgs::PointCloud& msg);
+    void GrabMap(const sensor_msgs::PointCloud& msg);
 
     ORB_SLAM2::System* mpSLAM;
 };
@@ -67,8 +72,8 @@ int main(int argc, char **argv)
     ros::init(argc, argv, "Mono");
     ros::start();
     ros::NodeHandle nodeHandler;
-    nodeHandler.param<std::string>("VOCAB_FILE", VOCAB_FILE, "/home/sahib/Documents/ORBSlam/Vocabulary/ORBvoc.txt");
-    nodeHandler.param<std::string>("SETTINGS_FILE", SETTINGS_FILE, "/home/sahib/Downloads/BagFiles/magna.yaml");
+    nodeHandler.param<std::string>("VOCAB_FILE", VOCAB_FILE, "vocab.txt");
+    nodeHandler.param<std::string>("SETTINGS_FILE", SETTINGS_FILE, "settings.yaml");
 
     // Create SLAM system. It initializes all system threads and gets ready to process frames.
     ORB_SLAM2::System SLAM(VOCAB_FILE,SETTINGS_FILE,ORB_SLAM2::System::MONOCULAR,true);

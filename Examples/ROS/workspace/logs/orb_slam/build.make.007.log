@@ -1,4 +1,0 @@
-[35m[1mScanning dependencies of target mono_slam[0m
-[ 50%] [32mBuilding CXX object CMakeFiles/mono_slam.dir/src/ros_mono.cc.o[0m
-[100%] [32m[1mLinking CXX executable /home/sahib/Documents/ORBSlam/Examples/ROS/workspace/devel/.private/orb_slam/lib/orb_slam/mono_slam[0m
-[100%] Built target mono_slam
