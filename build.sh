@@ -1,6 +1,5 @@
 echo "Configuring and building Thirdparty/Pangolin ..."
 cd Thirdparty/
-git clone https://github.com/stevenlovegrove/Pangolin.git
 cd Pangolin
 mkdir build
 cd build
