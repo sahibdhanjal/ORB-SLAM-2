@@ -61,7 +61,8 @@ void ImageGrabber::GrabImage(const sensor_msgs::ImageConstPtr& msg)
                                 -pose.at<float>(1,0),  pose.at<float>(1,1),  pose.at<float>(1,2),
                                  pose.at<float>(2,0), -pose.at<float>(2,1), -pose.at<float>(2,2));
     tf::Vector3 rh_cameraTranslation(pose.at<float>(0,3), pose.at<float>(1,3), -pose.at<float>(2,3) );
-    tf::Matrix3x3 rotation270degZX(0, 0, 1, -1, 0, 0, 0,-1, 0);
+    // tf::Matrix3x3 rotation270degZX(0, 0, 1, -1, 0, 0, 0,-1, 0);
+
     tf::Quaternion q;
     rh_cameraPose.getRotation(q);
     geometry_msgs::PoseStamped p;
@@ -104,7 +105,7 @@ int main(int argc, char **argv)
     nodeHandler.param<std::string>("SETTINGS_FILE", SETTINGS_FILE, "settings.yaml");
 
     // Create SLAM system. It initializes all system threads and gets ready to process frames.
-    ORB_SLAM2::System SLAM(VOCAB_FILE,SETTINGS_FILE,ORB_SLAM2::System::MONOCULAR,true);
+    ORB_SLAM2::System SLAM(VOCAB_FILE, SETTINGS_FILE, ORB_SLAM2::System::MONOCULAR, true);
 
     ImageGrabber igb(&SLAM);
     pointcloud_pub = nodeHandler.advertise<sensor_msgs::PointCloud>("/pointcloud", 1);
