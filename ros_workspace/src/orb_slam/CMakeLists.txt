@@ -30,7 +30,7 @@ endif()
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED roscpp  nav_msgs sensor_msgs image_transport cv_bridge tf)
+find_package(catkin REQUIRED roscpp  geometry_msgs sensor_msgs image_transport cv_bridge tf)
 find_package(OpenCV 3.0 QUIET)
 if(NOT OpenCV_FOUND)
     find_package(OpenCV 2.4.3 QUIET)
