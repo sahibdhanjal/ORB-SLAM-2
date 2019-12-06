@@ -20,8 +20,12 @@
 using namespace std;
 using namespace tf;
 
+// define required constants
 string VOCAB_FILE;
 string SETTINGS_FILE;
+ros::Publisher pose_pub;
+ros::Publisher pointcloud_pub;
+ros::Subscriber image_sub;
 
 class ImageGrabber
 {
@@ -49,7 +53,28 @@ void ImageGrabber::GrabImage(const sensor_msgs::ImageConstPtr& msg)
         return;
     }
 
-    mpSLAM->TrackMonocular(cv_ptr->image,cv_ptr->header.stamp.toSec());
+    cv::Mat pose = mpSLAM->TrackMonocular(cv_ptr->image,cv_ptr->header.stamp.toSec());
+
+    if(pose.empty()) return;
+
+    tf::Matrix3x3 rh_cameraPose(-pose.at<float>(0,0),  pose.at<float>(0,1),  pose.at<float>(0,2),
+                                -pose.at<float>(1,0),  pose.at<float>(1,1),  pose.at<float>(1,2),
+                                 pose.at<float>(2,0), -pose.at<float>(2,1), -pose.at<float>(2,2));
+    tf::Vector3 rh_cameraTranslation(pose.at<float>(0,3), pose.at<float>(1,3), -pose.at<float>(2,3) );
+    tf::Matrix3x3 rotation270degZX(0, 0, 1, -1, 0, 0, 0,-1, 0);
+    tf::Quaternion q;
+    rh_cameraPose.getRotation(q);
+    geometry_msgs::PoseStamped p;
+    p.header.frame_id = "world";
+    p.pose.position.x = rh_cameraTranslation[0];
+    p.pose.position.y = rh_cameraTranslation[1];
+    p.pose.position.z = rh_cameraTranslation[2];
+    p.pose.orientation.x = q[0];
+    p.pose.orientation.y = q[1];
+    p.pose.orientation.z = q[2];
+    p.pose.orientation.w = q[3];
+    pose_pub.publish(p);
+
 }
 
 int main(int argc, char **argv)
@@ -65,11 +90,9 @@ int main(int argc, char **argv)
     ORB_SLAM2::System SLAM(VOCAB_FILE,SETTINGS_FILE,ORB_SLAM2::System::MONOCULAR,true);
 
     ImageGrabber igb(&SLAM);
-
-
-    ros::Subscriber subscribe_images = nodeHandler.subscribe("/camera/image_raw", 1, &ImageGrabber::GrabImage,&igb);
-    ros::Publisher publish_pointcloud = nodeHandler.advertise<sensor_msgs::PointCloud>("/pointcloud", 1);
-    ros::Publisher publish_pose = nodeHandler.advertise<geometry_msgs::PoseStamped>("/pose", 1);
+    pointcloud_pub = nodeHandler.advertise<sensor_msgs::PointCloud>("/pointcloud", 1);
+    pose_pub = nodeHandler.advertise<geometry_msgs::PoseStamped>("/pose", 1);
+    image_sub = nodeHandler.subscribe("/camera/image_raw", 1, &ImageGrabber::GrabImage, &igb);
 
     while(ros::ok()) {
         ros::spinOnce();
