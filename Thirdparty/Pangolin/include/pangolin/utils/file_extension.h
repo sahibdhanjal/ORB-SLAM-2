@@ -44,20 +44,8 @@ enum ImageFileType
     ImageFileTypeExr,
     ImageFileTypePango,
     ImageFileTypePvn,
-    ImageFileTypeZstd,
-    ImageFileTypeLz4,
-    ImageFileTypeP12b,
-    ImageFileTypePly,
-    ImageFileTypeObj,
     ImageFileTypeUnknown
 };
-
-
-PANGOLIN_EXPORT
-std::string ImageFileTypeToName(ImageFileType);
-
-PANGOLIN_EXPORT
-ImageFileType NameToImageFileType(const std::string&);
 
 PANGOLIN_EXPORT
 std::string FileLowercaseExtention(const std::string& filename);

@@ -154,21 +154,9 @@ public:
     inline void Deallocate()
     {
         if (Image<T>::ptr) {
-            Allocator().deallocate(Image<T>::ptr, (Image<T>::h * Image<T>::pitch) / sizeof(T) );
+            Allocator().deallocate(Image<T>::ptr, Image<T>::Area());
             Image<T>::ptr = nullptr;
         }
-    }
-
-    // Move asignment
-    template<typename TOther, typename AllocOther> inline
-    void OwnAndReinterpret(ManagedImage<TOther,AllocOther>&& img)
-    {
-        Deallocate();
-        Image<T>::pitch = img.pitch;
-        Image<T>::ptr   = (T*)img.ptr;
-        Image<T>::w     = img.w;
-        Image<T>::h     = img.h;
-        img.ptr = nullptr;
     }
 };
 

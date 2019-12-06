@@ -46,13 +46,9 @@ struct Axis : public Renderable, public Interactive
         bool /*pressed*/, int button_state, int pickId
     ) override
     {
-        PANGOLIN_UNUSED(button);
-        PANGOLIN_UNUSED(button_state);
-        PANGOLIN_UNUSED(pickId);
-
 #ifdef HAVE_EIGEN
         if((button == MouseWheelUp || button == MouseWheelDown) ) {
-            float scale = (button == MouseWheelUp) ? 0.01f : -0.01f;
+            float scale = (button == MouseWheelUp) ? 0.01 : -0.01;
             if(button_state & KeyModifierShift) scale /= 10;
 
             Eigen::Vector3d rot = Eigen::Vector3d::Zero();

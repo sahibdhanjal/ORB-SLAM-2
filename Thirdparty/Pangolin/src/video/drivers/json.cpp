@@ -38,7 +38,7 @@ namespace pangolin {
 
 PANGOLIN_REGISTER_FACTORY(JsonVideo)
 {
-    struct JsonVideoFactory final : public FactoryInterface<VideoInterface> {
+    struct JsonVideoFactory : public FactoryInterface<VideoInterface> {
         std::unique_ptr<VideoInterface> Open(const Uri& uri) override {
             if(uri.scheme == "json" || (uri.scheme == "file" && FileLowercaseExtention(uri.url) == ".json")) {
                 const std::string json_filename = PathExpand(uri.url);
@@ -47,8 +47,8 @@ PANGOLIN_REGISTER_FACTORY(JsonVideo)
                 // Parse json file to determine sub-video
                 if(f.is_open())
                 {
-                    picojson::value file_json(picojson::object_type,true);
-                    const std::string err = picojson::parse(file_json,f);
+                    json::value file_json(json::object_type,true);
+                    const std::string err = json::parse(file_json,f);
                     if(err.empty())
                     {
                         // Json loaded. Parse output.
@@ -56,9 +56,9 @@ PANGOLIN_REGISTER_FACTORY(JsonVideo)
                         if(!input_uri.empty())
                         {
                             // Transform input_uri based on sub args.
-                            const picojson::value input_uri_params = file_json.get_value<picojson::object>("video_uri_defaults", picojson::object());
+                            const json::value input_uri_params = file_json.get_value<json::object>("video_uri_defaults", json::object());
                             input_uri = Transform(input_uri, [&](const std::string& k) {
-                                return uri.Get<std::string>(k, input_uri_params.contains(k) ? input_uri_params[k].to_str() : "#");
+                                return uri.Get<std::string>(k,input_uri_params.get_value<std::string>(k,"#"));
                             });
 
                             return pangolin::OpenVideo(input_uri);

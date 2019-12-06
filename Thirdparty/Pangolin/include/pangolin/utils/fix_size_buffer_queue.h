@@ -27,11 +27,11 @@
 
 #pragma once
 
-#include <condition_variable>
 #include <list>
-#include <mutex>
-#include <mutex>
 #include <thread>
+#include <mutex>
+#include <condition_variable>
+#include <mutex>
 
 namespace pangolin
 {
@@ -44,7 +44,36 @@ public:
     FixSizeBuffersQueue() {}
 
     ~FixSizeBuffersQueue() {
+//        // Deallocate everything.
+//        std::lock_guard<std::mutex> vlock(vMtx);
+//        while(validBuffers.size() > 0){
+//            delete[] validBuffers.front();
+//            validBuffers.pop_front();
+//        }
+//        std::lock_guard<std::mutex> elock(eMtx);
+//        while(emptyBuffers.size() > 0){
+//            delete[] emptyBuffers.front();
+//            emptyBuffers.pop_front();
+//        }
     }
+
+//    void init(unsigned int num, unsigned int sizeBytes) {
+//        maxNumBuffers = num;
+//        bufferSizeBytes = sizeBytes;
+//        // lock queue
+//        std::lock_guard<std::mutex> vlock(vMtx);
+//        std::lock_guard<std::mutex> elock(eMtx);
+
+//        // Put back any valid buffer to the available buffers queue.
+//        while(validBuffers.size() > 0){
+//            emptyBuffers.push_back(validBuffers.front());
+//            validBuffers.pop_front();
+//        }
+//        // Allocate buffers
+//        while(emptyBuffers.size() < maxNumBuffers) {
+//            emptyBuffers.push_back(new unsigned char[bufferSizeBytes]);
+//        }
+//    }
 
     BufPType getNewest() {
         std::lock_guard<std::mutex> vlock(vMtx);
@@ -55,11 +84,11 @@ public:
         } else {
             // Requeue all but newest buffers.
             while(validBuffers.size() > 1) {
-                emptyBuffers.push_back(std::move(validBuffers.front()));
+                emptyBuffers.push_back(validBuffers.front());
                 validBuffers.pop_front();
             }
             // Return newest buffer.
-            BufPType bp = std::move(validBuffers.front());
+            BufPType bp = validBuffers.front();
             validBuffers.pop_front();
             return bp;
         }
@@ -72,7 +101,7 @@ public:
             return 0;
         } else {
             // Return oldest buffer.
-            BufPType bp = std::move(validBuffers.front());
+            BufPType bp = validBuffers.front();
             validBuffers.pop_front();
             return bp;
         }
@@ -83,7 +112,7 @@ public:
         std::lock_guard<std::mutex> elock(eMtx);
         if(emptyBuffers.size() > 0) {
             // Simply get a free buffer from the free buffers list.
-            BufPType bp = std::move(emptyBuffers.front());
+            BufPType bp = emptyBuffers.front();
             emptyBuffers.pop_front();
             return bp;
         } else {
@@ -93,7 +122,7 @@ public:
             } else {
                 std::cerr << "Out of free buffers." << std::endl;
                 // No free buffers return oldest among the valid buffers.
-                BufPType bp = std::move(validBuffers.front());
+                BufPType bp = validBuffers.front();
                 validBuffers.pop_front();
                 return bp;
             }
@@ -103,13 +132,13 @@ public:
     void addValidBuffer(BufPType bp) {
         // Add buffer to valid buffers queue.
         std::lock_guard<std::mutex> vlock(vMtx);
-        validBuffers.push_back(std::move(bp));
+        validBuffers.push_back(bp);
     }
 
     void returnOrAddUsedBuffer(BufPType bp) {
         // Add buffer back to empty buffers queue.
         std::lock_guard<std::mutex> elock(eMtx);
-        emptyBuffers.push_back(std::move(bp));
+        emptyBuffers.push_back(bp);
     }
 
     size_t AvailableFrames() const {
@@ -130,7 +159,7 @@ public:
             std::lock_guard<std::mutex> elock(eMtx);
             // Requeue all but newest buffers.
             for(unsigned int i=0; i<n; ++i) {
-                emptyBuffers.push_back(std::move(validBuffers.front()));
+                emptyBuffers.push_back(validBuffers.front());
                 validBuffers.pop_front();
             }
             return true;

@@ -27,10 +27,14 @@ public:
     _unlock();
   }
 
-  bool wait(timespec abstime) {
+  bool wait(basetime abstime) {
+    struct timespec pthread_abstime;
+    pthread_abstime.tv_sec = abstime.tv_sec;
+    pthread_abstime.tv_nsec = abstime.tv_usec * 1000;
+
     _lock();
     int err = pthread_cond_timedwait(&_pthread_data->cond, &_pthread_data->lock,
-                           &abstime);
+                           &pthread_abstime);
     _unlock();
 
     return 0 == err;

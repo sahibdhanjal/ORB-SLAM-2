@@ -39,9 +39,6 @@ enum MirrorOptions
     MirrorOptionsFlipX,
     MirrorOptionsFlipY,
     MirrorOptionsFlipXY,
-    MirrorOptionsTranspose,
-    MirrorOptionsRotateCW,
-    MirrorOptionsRotateCCW,
 };
 
 // Video class that debayers its video input using the given method.
@@ -89,8 +86,8 @@ protected:
     size_t size_bytes;
     unsigned char* buffer;
 
-    picojson::value device_properties;
-    picojson::value frame_properties;
+    json::value device_properties;
+    json::value frame_properties;
 };
 
 }

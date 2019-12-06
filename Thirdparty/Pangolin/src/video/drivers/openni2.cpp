@@ -26,11 +26,11 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <pangolin/factory/factory_registry.h>
 #include <pangolin/video/drivers/openni2.h>
+#include <pangolin/factory/factory_registry.h>
 
-#include <OniVersion.h>
 #include <PS1080.h>
+#include <OniVersion.h>
 
 namespace pangolin
 {
@@ -75,7 +75,7 @@ void OpenNi2Video::PrintOpenNI2Modes(openni::SensorType sensorType)
         std::string sfmt = "PangolinUnknown";
         try{
             sfmt = VideoFormatFromOpenNI2(modes[i].getPixelFormat()).format;
-        }catch(const VideoException&){}
+        }catch(VideoException){}
         pango_print_info( "  %dx%d, %d fps, %s\n",
             modes[i].getResolutionX(), modes[i].getResolutionY(),
             modes[i].getFps(), sfmt.c_str()
@@ -209,7 +209,7 @@ void OpenNi2Video::InitialiseOpenNI()
     numDevices = 0;
     numStreams = 0;
     current_frame_index = 0;
-    total_frames = std::numeric_limits<size_t>::max();
+    total_frames = std::numeric_limits<int>::max();
 
     openni::Status rc = openni::STATUS_OK;
 
@@ -242,7 +242,7 @@ void OpenNi2Video::AddStream(const OpenNiStreamMode& mode)
 
     openni::PlaybackControl* control = device.getPlaybackControl();
     if(control && numStreams==0) {
-        total_frames = std::min(total_frames, (size_t)control->getNumberOfFrames(stream));
+        total_frames = std::min(total_frames,control->getNumberOfFrames(stream));
     }
 
     numStreams++;
@@ -251,14 +251,17 @@ void OpenNi2Video::AddStream(const OpenNiStreamMode& mode)
 void OpenNi2Video::SetupStreamModes()
 {
     streams_properties = &frame_properties["streams"];
-    *streams_properties = picojson::value(picojson::array_type,false);
-    streams_properties->get<picojson::array>().resize(numStreams);
+    *streams_properties = json::value(json::array_type,false);
+    streams_properties->get<json::array>().resize(numStreams);
 
     use_depth = false;
     use_ir = false;
     use_rgb = false;
     depth_to_color = false;
     use_ir_and_rgb = false;
+
+    //    const char* deviceURI = openni::ANY_DEVICE;
+    fromFile = false;//(deviceURI!=NULL);
 
     sizeBytes =0;
     for(size_t i=0; i<numStreams; ++i) {
@@ -269,10 +272,6 @@ void OpenNi2Video::SetupStreamModes()
         switch( mode.sensor_type ) {
         case OpenNiDepth_1mm_Registered:
             depth_to_color = true;
-            nisensortype = openni::SENSOR_DEPTH;
-            nipixelfmt = openni::PIXEL_FORMAT_DEPTH_1_MM;
-            use_depth = true;
-            break;
         case OpenNiDepth_1mm:
             nisensortype = openni::SENSOR_DEPTH;
             nipixelfmt = openni::PIXEL_FORMAT_DEPTH_1_MM;
@@ -318,19 +317,16 @@ void OpenNi2Video::SetupStreamModes()
         openni::VideoMode onivmode;
         try {
             onivmode = FindOpenNI2Mode(devices[mode.device], nisensortype, mode.dim.x, mode.dim.y, mode.fps, nipixelfmt);
-        }catch(const VideoException& e) {
+        }catch(VideoException e) {
             pango_print_error("Unable to find compatible OpenNI Video Mode. Please choose from:\n");
             PrintOpenNI2Modes(nisensortype);
             fflush(stdout);
             throw e;
         }
 
-        openni::Status rc;
-        if(!devices[mode.device].isFile()){//trying to setVideoMode on a file results in an OpenNI error
-            rc = video_stream[i].setVideoMode(onivmode);
-            if(rc != openni::STATUS_OK)
-                throw VideoException("Couldn't set OpenNI VideoMode", openni::OpenNI::getExtendedError());
-        }
+        openni::Status rc = video_stream[i].setVideoMode(onivmode);
+        if(rc != openni::STATUS_OK)
+            throw VideoException("Couldn't set OpenNI VideoMode", openni::OpenNI::getExtendedError());
 
         int outputWidth = onivmode.getResolutionX();
         int outputHeight = onivmode.getResolutionY();
@@ -362,13 +358,13 @@ void OpenNi2Video::SetupStreamModes()
 
 void OpenNi2Video::UpdateProperties()
 {
-    picojson::value& jsopenni = device_properties["openni"];
+    json::value& jsopenni = device_properties["openni"];
 
-    picojson::value& jsdevices = jsopenni["devices"];
-    jsdevices = picojson::value(picojson::array_type,false);
-    jsdevices.get<picojson::array>().resize(numDevices);
+    json::value& jsdevices = jsopenni["devices"];
+    jsdevices = json::value(json::array_type,false);
+    jsdevices.get<json::array>().resize(numDevices);
     for (size_t i=0; i<numDevices; ++i) {
-      picojson::value& jsdevice = jsdevices[i];
+      json::value& jsdevice = jsdevices[i];
 #define SET_PARAM(param_type, param) \
       { \
         param_type val; \
@@ -384,9 +380,9 @@ void OpenNi2Video::UpdateProperties()
 #undef SET_PARAM
     }
 
-    picojson::value& stream = jsopenni["streams"];
-    stream = picojson::value(picojson::array_type,false);
-    stream.get<picojson::array>().resize(Streams().size());
+    json::value& stream = jsopenni["streams"];
+    stream = json::value(json::array_type,false);
+    stream.get<json::array>().resize(Streams().size());
     for(unsigned int i=0; i<Streams().size(); ++i) {
         if(sensor_type[i].sensor_type != OpenNiUnassigned)
         {
@@ -398,7 +394,7 @@ void OpenNi2Video::UpdateProperties()
                 } \
             }
 
-            picojson::value& jsstream = stream[i];
+            json::value& jsstream = stream[i];
             SET_PARAM( unsigned long long, XN_STREAM_PROPERTY_INPUT_FORMAT );
             SET_PARAM( unsigned long long, XN_STREAM_PROPERTY_CROPPING_MODE );
 
@@ -614,17 +610,17 @@ bool OpenNi2Video::GrabNewest( unsigned char* image, bool wait )
     return GrabNext(image,wait);
 }
 
-size_t OpenNi2Video::GetCurrentFrameId() const
+int OpenNi2Video::GetCurrentFrameId() const
 {
     return current_frame_index;
 }
 
-size_t OpenNi2Video::GetTotalFrames() const
+int OpenNi2Video::GetTotalFrames() const
 {
     return total_frames;
 }
 
-size_t OpenNi2Video::Seek(size_t frameid)
+int OpenNi2Video::Seek(int frameid)
 {
     openni::PlaybackControl* control = devices[0].getPlaybackControl();
     if(control) {
@@ -637,7 +633,7 @@ size_t OpenNi2Video::Seek(size_t frameid)
 
 PANGOLIN_REGISTER_FACTORY(OpenNi2Video)
 {
-    struct OpenNI2VideoFactory final : public FactoryInterface<VideoInterface> {
+    struct OpenNI2VideoFactory : public FactoryInterface<VideoInterface> {
         std::unique_ptr<VideoInterface> Open(const Uri& uri) override {
             const bool realtime = uri.Contains("realtime");
             const ImageDim default_dim = uri.Get<ImageDim>("size", ImageDim(640,480));

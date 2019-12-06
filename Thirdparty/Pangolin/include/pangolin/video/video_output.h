@@ -55,7 +55,6 @@ class PANGOLIN_EXPORT VideoOutput : public VideoOutputInterface
 {
 public:
     VideoOutput();
-    VideoOutput(VideoOutput&& other) = default;
     VideoOutput(const std::string& uri);
     ~VideoOutput();
     
@@ -65,27 +64,13 @@ public:
 
     const std::vector<StreamInfo>& Streams() const override;
 
-    void SetStreams(const std::vector<StreamInfo>& streams, const std::string& uri = "", const picojson::value& properties = picojson::value() ) override;
+    void SetStreams(const std::vector<StreamInfo>& streams, const std::string& uri = "", const json::value& properties = json::value() ) override;
 
-    int WriteStreams(const unsigned char* data, const picojson::value& frame_properties = picojson::value() ) override;
-
+    int WriteStreams(const unsigned char* data, const json::value& frame_properties = json::value() ) override;
+    
     bool IsPipe() const override;
 
-    void AddStream(const PixelFormat& pf, size_t w,size_t h,size_t pitch);
-
-    void AddStream(const PixelFormat& pf, size_t w,size_t h);
-
-    void SetStreams(const std::string& uri = "", const picojson::value& properties = picojson::value() );
-
-    size_t SizeBytes(void) const ;
-
-    std::vector<Image<unsigned char>> GetOutputImages(unsigned char* buffer) const ;
-
-    std::vector<Image<unsigned char>> GetOutputImages(std::vector<unsigned char>& buffer) const ;
-
-
 protected:
-    std::vector<StreamInfo> streams;
     Uri uri;
     std::unique_ptr<VideoOutputInterface> recorder;
 };

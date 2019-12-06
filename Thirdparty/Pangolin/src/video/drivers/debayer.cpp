@@ -55,8 +55,6 @@ pangolin::StreamInfo BayerOutputFormat( const StreamInfo& stream_in, bayer_metho
                 (method == BAYER_METHOD_DOWNSAMPLE_MONO ? "GRAY8" : "RGB24")
             );
 
-    fmt.channel_bit_depth = stream_in.PixFormat().channel_bit_depth;
-
     return pangolin::StreamInfo( fmt, w, h, w*fmt.bpp / 8, (unsigned char*)0 + start_offset );
 }
 
@@ -229,7 +227,7 @@ template<typename Tout, typename Tin>
 void ProcessImage(Image<Tout>& img_out, const Image<Tin>& img_in, bayer_method_t method, color_filter_t tile)
 {
     if(method == BAYER_METHOD_NONE) {
-        PitchedImageCopy(img_out, img_in.template UnsafeReinterpret<Tout>() );
+        PitchedImageCopy(img_out, img_in.template Reinterpret<Tout>() );
     }else if(method == BAYER_METHOD_DOWNSAMPLE_MONO) {
         if( sizeof(Tout) == 1) {
             DownsampleToMono<int,Tout, Tin>(img_out, img_in);
@@ -271,8 +269,8 @@ void DebayerVideo::ProcessStreams(unsigned char* out, const unsigned char *in)
         }else if(stin.PixFormat().bpp == 8) {
             ProcessImage(img_out, img_in, methods[s], tile);
         }else if(stin.PixFormat().bpp == 16){
-            Image<uint16_t> img_in16  = img_in.UnsafeReinterpret<uint16_t>();
-            Image<uint16_t> img_out16 = img_out.UnsafeReinterpret<uint16_t>();
+            Image<uint16_t> img_in16  = img_in.Reinterpret<uint16_t>();
+            Image<uint16_t> img_out16 = img_out.Reinterpret<uint16_t>();
             ProcessImage(img_out16, img_in16, methods[s], tile);
         }else {
             throw std::runtime_error("debayer: unhandled format combination: " + stin.PixFormat().format );
@@ -339,7 +337,7 @@ bayer_method_t DebayerVideo::BayerMethodFromString(std::string str)
 
 PANGOLIN_REGISTER_FACTORY(DebayerVideo)
 {
-    struct DebayerVideoFactory final : public FactoryInterface<VideoInterface> {
+    struct DebayerVideoFactory : public FactoryInterface<VideoInterface> {
         std::unique_ptr<VideoInterface> Open(const Uri& uri) override {
             std::unique_ptr<VideoInterface> subvid = pangolin::OpenVideo(uri.url);
             const std::string tile_string = uri.Get<std::string>("tile","rggb");

@@ -25,11 +25,11 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <pangolin/gl/gldraw.h>
 #include <pangolin/plot/plotter.h>
+#include <pangolin/gl/gldraw.h>
 
-#include <cctype>
 #include <iomanip>
+#include <cctype>
 
 namespace pangolin
 {
@@ -210,6 +210,9 @@ Plotter::Plotter(
       linked_plotter_x(linked_plotter_x),
       linked_plotter_y(linked_plotter_y)
 {
+    if(!log) {
+        throw std::runtime_error("DataLog not specified");
+    }
     // Prevent links to ourselves - this could cause infinite recursion.
     if(linked_plotter_x == this) this->linked_plotter_x = 0;
     if(linked_plotter_y == this) this->linked_plotter_y = 0;
@@ -282,9 +285,13 @@ Plotter::Plotter(
     // Setup default PlotSeries
     plotseries.reserve(RESERVED_SIZE);
     for(unsigned int i=0; i< 10; ++i) {
-        std::ostringstream ss;
-        ss << "$" << i;
-        if(log) AddSeries("$i", ss.str());
+        std::ostringstream oss;
+        oss << "$" << i;
+        plotseries.push_back( PlotSeries() );
+        plotseries.back().CreatePlot( "$i", oss.str(),
+            colour_wheel.GetUniqueColour(),
+            i < log->Labels().size() ? log->Labels()[i] : oss.str()
+        );
     }
 
     // Setup test PlotMarkers
@@ -378,21 +385,7 @@ void Plotter::Render()
 #endif
 
     glClearColor(colour_bg.r, colour_bg.g, colour_bg.b, colour_bg.a);
-    ActivateAndScissor();
-
-    if(std::isfinite(colour_bg.a)) {
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    }
-
-    if(extern_draw_function && show) {
-        glMatrixMode(GL_PROJECTION);
-        glLoadIdentity();
-        glOrtho(rview.x.min, rview.x.max, rview.y.max, rview.y.min, -1, 1);
-        glMatrixMode(GL_MODELVIEW);
-        glLoadIdentity();
-
-        extern_draw_function(*this);
-    }
+    ActivateScissorAndClear();
 
     // Try to create smooth lines
     glDisable(GL_MULTISAMPLE);
@@ -404,8 +397,8 @@ void Plotter::Render()
     glDisable(GL_LIGHTING);
     glDisable( GL_DEPTH_TEST );
 
-    const float w = rview.x.AbsSize();
-    const float h = rview.y.AbsSize();
+    const float w = rview.x.Size();
+    const float h = rview.y.Size();
     const float ox = -rview.x.Mid();
     const float oy = -rview.y.Mid();
     const float sx = 2.0f / w;
@@ -419,34 +412,9 @@ void Plotter::Render()
     prog_lines.SetUniform("u_color",  colour_tk );
 
     const float min_space = 80.0;
-    float ta[2] = {1,1};
-
-    while(true)
-    {
-        const float interval = v.w * tick[0].val / w;
-
-        if(ta[0] * interval < min_space)
-            ta[0] *=2;
-        if(ta[0] * interval < min_space)
-            ta[0] =(5*ta[0])/2;
-        if(ta[0] * interval < min_space)
-            ta[0] *=2;
-        else
-            break;
-    }
-    while(true)
-    {
-        const float interval = v.h * tick[1].val / h;
-
-        if(ta[1] * interval < min_space)
-            ta[1] *=2;
-        if(ta[1] * interval < min_space)
-            ta[1] =(5*ta[1])/2;
-        if(ta[1] * interval < min_space)
-            ta[1] *=2;
-        else
-            break;
-    }
+    int ta[2] = {1,1};
+    while(v.w * ta[0] *tick[0].val / w < min_space) ta[0] *=2;
+    while(v.h * ta[1] *tick[1].val / h < min_space) ta[1] *=2;
 
     const float tdelta[2] = {
         tick[0].val * ta[0],
@@ -505,67 +473,60 @@ void Plotter::Render()
     for(size_t i=0; i < plotseries.size(); ++i)
     {
         PlotSeries& ps = plotseries[i];
+        GlSlProgram& prog = ps.prog;
+        ps.used = false;
 
-        if(ps.drawing_mode != pangolin::DrawingModeNone)
-        {
-            GlSlProgram& prog = ps.prog;
-            ps.used = false;
+        prog.SaveBind();
+        prog.SetUniform("u_scale",  sx, sy);
+        prog.SetUniform("u_offset", ox, oy);
+        prog.SetUniform("u_color", ps.colour );
 
-            prog.SaveBind();
-            prog.SetUniform("u_scale",  sx, sy);
-            prog.SetUniform("u_offset", ox, oy);
-            prog.SetUniform("u_color", ps.colour );
-
-            // TODO: Try to skip drawing of blocks which aren't in view.
-            DataLog* log = ps.log ? ps.log : default_log;
-            std::lock_guard<std::mutex> l(log->access_mutex);
-
-            const DataLogBlock* block = log->FirstBlock();
-            while(block) {
-                if(ps.contains_id ) {
-                    if(id_size < block->Samples() ) {
-                        // Create index array that we can bind
-                        delete[] id_array;
-                        id_size = block->MaxSamples();
-                        id_array = new float[id_size];
-                        for(size_t k=0; k < id_size; ++k) {
-                            id_array[k] = (float)k;
-                        }
-                    }
-                    prog.SetUniform("u_id_offset",  (float)block->StartId() );
-                }
-
-                // Enable appropriate attributes
-                bool shouldRender = true;
-                for(size_t i=0; i< ps.attribs.size(); ++i) {
-                    if(0 <= ps.attribs[i].plot_id && ps.attribs[i].plot_id < (int)block->Dimensions() ) {
-                        glVertexAttribPointer(ps.attribs[i].location, 1, GL_FLOAT, GL_FALSE, (GLsizei)(block->Dimensions()*sizeof(float)), block->DimData(ps.attribs[i].plot_id) );
-                        glEnableVertexAttribArray(ps.attribs[i].location);
-                    }else if( ps.attribs[i].plot_id == -1 ){
-                        glVertexAttribPointer(ps.attribs[i].location, 1, GL_FLOAT, GL_FALSE, 0, id_array );
-                        glEnableVertexAttribArray(ps.attribs[i].location);
-                    }else{
-                        // bad id: don't render
-                        shouldRender = false;
-                        break;
+        // TODO: Try to skip drawing of blocks which aren't in view.
+        const DataLogBlock* block = ps.log ? ps.log->FirstBlock() : default_log->FirstBlock();
+        while(block) {
+            if(ps.contains_id ) {
+                if(id_size < block->Samples() ) {
+                    // Create index array that we can bind
+                    delete[] id_array;
+                    id_size = block->MaxSamples();
+                    id_array = new float[id_size];
+                    for(size_t k=0; k < id_size; ++k) {
+                        id_array[k] = (float)k;
                     }
                 }
-
-                if(shouldRender) {
-                    // Draw geometry
-                    glDrawArrays(ps.drawing_mode, 0, (GLsizei)block->Samples());
-                    ps.used = true;
-                }
-
-                // Disable enabled attributes
-                for(size_t i=0; i< ps.attribs.size(); ++i) {
-                    glDisableVertexAttribArray(ps.attribs[i].location);
-                }
-
-                block = block->NextBlock();
+                prog.SetUniform("u_id_offset",  (float)block->StartId() );
             }
-            prog.Unbind();
+
+            // Enable appropriate attributes
+            bool shouldRender = true;
+            for(size_t i=0; i< ps.attribs.size(); ++i) {
+                if(0 <= ps.attribs[i].plot_id && ps.attribs[i].plot_id < (int)block->Dimensions() ) {
+                    glVertexAttribPointer(ps.attribs[i].location, 1, GL_FLOAT, GL_FALSE, (GLsizei)(block->Dimensions()*sizeof(float)), block->DimData(ps.attribs[i].plot_id) );
+                    glEnableVertexAttribArray(ps.attribs[i].location);
+                }else if( ps.attribs[i].plot_id == -1 ){
+                    glVertexAttribPointer(ps.attribs[i].location, 1, GL_FLOAT, GL_FALSE, 0, id_array );
+                    glEnableVertexAttribArray(ps.attribs[i].location);
+                }else{
+                    // bad id: don't render
+                    shouldRender = false;
+                    break;
+                }
+            }
+
+            if(shouldRender) {
+                // Draw geometry
+                glDrawArrays(ps.drawing_mode, 0, (GLsizei)block->Samples());
+                ps.used = true;
+            }
+
+            // Disable enabled attributes
+            for(size_t i=0; i< ps.attribs.size(); ++i) {
+                glDisableVertexAttribArray(ps.attribs[i].location);
+            }
+
+            block = block->NextBlock();
         }
+        prog.Unbind();
     }
 
     prog_lines.SaveBind();
@@ -620,11 +581,11 @@ void Plotter::Render()
     for(size_t i=0; i < plotseries.size(); ++i)
     {
         PlotSeries& ps = plotseries[i];
-        if(ps.used && ps.drawing_mode != pangolin::DrawingModeNone) {
+        if(ps.used) {
             prog_text.SetUniform("u_color", ps.colour );
             prog_text.SetUniform("u_offset",
                 v.w-5-ps.title.Width() -(v.w/2.0f),
-                v.h-1.5*ps.title.Height()*(++keyid) -(v.h/2.0f)
+                v.h-15*(++keyid) -(v.h/2.0f)
             );
             ps.title.DrawGlSl();
         }
@@ -829,8 +790,6 @@ void Plotter::SetView(const XYRangef& range)
 
     px.rview.x = range.x;
     py.rview.y = range.y;
-    px.target.x = range.x;
-    py.target.y = range.y;
 }
 
 void Plotter::SetViewSmooth(const XYRangef &range)
@@ -950,19 +909,6 @@ void Plotter::Keyboard(View&, unsigned char key, int /*x*/, int /*y*/, bool pres
             ToggleTracking();
         }else if(key == 'e') {
             ToggleTrigger();
-        }else if('1' <= key && key <= '9') {
-            const size_t id = key - '1';
-            if(id < plotseries.size()) {
-                PlotSeries& s = plotseries[id];
-                if(s.drawing_mode == DrawingModeNone) {
-                    s.drawing_mode = DrawingModePoints;
-                }else{
-                    ++s.drawing_mode;
-                    if(s.drawing_mode == GL_LINE_LOOP) {
-                        ++s.drawing_mode;
-                    }
-                }
-            }
         }
     }
 }
@@ -1113,33 +1059,9 @@ void Plotter::AddSeries(const std::string& x_expr, const std::string& y_expr,
         colour = colour_wheel.GetUniqueColour();
     }
     plotseries.push_back( PlotSeries() );
-    plotseries.back().CreatePlot(x_expr, y_expr, colour, (title == "$y") ? PlotTitleFromExpr(y_expr) : title);
+    plotseries.back().CreatePlot(x_expr, y_expr, colour, (title == "$y") ? y_expr : title);
     plotseries.back().log = log;
     plotseries.back().drawing_mode = (GLenum)drawing_mode;
-}
-
-std::string Plotter::PlotTitleFromExpr(const std::string& expr) const
-{
-    const std::vector<std::string>& labels = default_log->Labels();
-
-    std::stringstream exp_in(expr);
-    std::stringstream exp_out;
-    while(exp_in) {
-        int c = exp_in.get();
-        if(c=='$') {
-            size_t id = -1;
-            exp_in >> id;
-            if(id < labels.size()) {
-                exp_out << '\'' << labels[id] << '\'';
-            }else{
-                exp_out << '$' << id;
-            }
-        }else{
-            exp_out << (char)c;
-        }
-    }
-
-    return exp_out.str();
 }
 
 void Plotter::ClearSeries()
@@ -1163,9 +1085,5 @@ void Plotter::ClearMarkers()
     plotmarkers.clear();
 }
 
-void Plotter::ResetColourWheel()
-{
-    colour_wheel.Reset();
-}
 
 }

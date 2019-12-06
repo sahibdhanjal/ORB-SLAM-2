@@ -103,7 +103,8 @@ extern "C" {
 #define PICOJSON_FALSE_TEMPLATE_TYPE ((void*)0)
 #endif
 
-namespace picojson {
+namespace pangolin {
+namespace json {
 
 enum {
     null_type,
@@ -275,7 +276,7 @@ private:
 typedef value::array array;
 typedef value::object object;
 
-inline value::value() : type_(null_type), u_({false}) {}
+inline value::value() : type_(null_type) {}
 
 inline value::value(int type, bool) : type_(type) {
     switch (type) {
@@ -1058,12 +1059,6 @@ template <typename Iter> inline Iter parse(value& out, const Iter& first, const 
     return _parse(ctx, first, last, err);
 }
 
-inline std::string parse(value &out, const std::string &s) {
-  std::string err;
-  parse(out, s.begin(), s.end(), &err);
-  return err;
-}
-
 inline std::string parse(value& out, std::istream& is) {
     std::string err;
     parse(out, std::istreambuf_iterator<char>(is.rdbuf()),
@@ -1107,19 +1102,20 @@ inline bool operator!=(const value& x, const value& y) {
 }
 
 } // namespace json
+} // namespace pangolin
 
-inline std::istream& operator>>(std::istream& is, picojson::value& x)
+inline std::istream& operator>>(std::istream& is, pangolin::json::value& x)
 {
-    picojson::set_last_error(std::string());
-    std::string err = picojson::parse(x, is);
+    pangolin::json::set_last_error(std::string());
+    std::string err = pangolin::json::parse(x, is);
     if (! err.empty()) {
-        picojson::set_last_error(err);
+        pangolin::json::set_last_error(err);
         is.setstate(std::ios::failbit);
     }
     return is;
 }
 
-inline std::ostream& operator<<(std::ostream& os, const picojson::value& x)
+inline std::ostream& operator<<(std::ostream& os, const pangolin::json::value& x)
 {
     x.serialize(std::ostream_iterator<char>(os));
     return os;
@@ -1178,7 +1174,7 @@ int main(void)
 
     // constructors
 #define TEST(expr, expected) \
-    is(picojson::value expr .serialize(), string(expected), "picojson::value" #expr)
+    is(pangolin::json::value expr .serialize(), string(expected), "pangolin::json::value" #expr)
 
     TEST( (true),  "true");
     TEST( (false), "false");
@@ -1190,10 +1186,10 @@ int main(void)
     {
         double a = 1;
         for (int i = 0; i < 1024; i++) {
-            picojson::value vi(a);
+            pangolin::json::value vi(a);
             std::stringstream ss;
             ss << vi;
-            picojson::value vo;
+            pangolin::json::value vo;
             ss >> vo;
             double b = vo.get<double>();
             if ((i < 53 && a != b) || fabs(a - b) / b > 1e-8) {
@@ -1206,9 +1202,9 @@ int main(void)
 #undef TEST
 
 #define TEST(in, type, cmp, serialize_test) {				\
-    picojson::value v;							\
+    pangolin::json::value v;							\
     const char* s = in;							\
-    string err = picojson::parse(v, s, s + strlen(s));			\
+    string err = pangolin::json::parse(v, s, s + strlen(s));			\
     ok(err.empty(), in " no error");					\
     ok(v.is<type>(), in " check type");					\
     is<type>(v.get<type>(), cmp, in " correct output");			\
@@ -1236,24 +1232,24 @@ int main(void)
 #undef TEST
 
 #define TEST(type, expr) {					       \
-    picojson::value v;						       \
+    pangolin::json::value v;						       \
     const char *s = expr;					       \
-    string err = picojson::parse(v, s, s + strlen(s));		       \
+    string err = pangolin::json::parse(v, s, s + strlen(s));		       \
     ok(err.empty(), "empty " #type " no error");		       \
-    ok(v.is<picojson::type>(), "empty " #type " check type");	       \
-    ok(v.get<picojson::type>().empty(), "check " #type " array size"); \
+    ok(v.is<pangolin::json::type>(), "empty " #type " check type");	       \
+    ok(v.get<pangolin::json::type>().empty(), "check " #type " array size"); \
 }
     TEST(array, "[]");
     TEST(object, "{}");
 #undef TEST
 
     {
-        picojson::value v;
+        pangolin::json::value v;
         const char *s = "[1,true,\"hello\"]";
-        string err = picojson::parse(v, s, s + strlen(s));
+        string err = pangolin::json::parse(v, s, s + strlen(s));
         ok(err.empty(), "array no error");
-        ok(v.is<picojson::array>(), "array check type");
-        is(v.get<picojson::array>().size(), size_t(3), "check array size");
+        ok(v.is<pangolin::json::array>(), "array check type");
+        is(v.get<pangolin::json::array>().size(), size_t(3), "check array size");
         ok(v.contains(0), "check contains array[0]");
         ok(v.get(0).is<double>(), "check array[0] type");
         is(v.get(0).get<double>(), 1.0, "check array[0] value");
@@ -1267,12 +1263,12 @@ int main(void)
     }
 
     {
-        picojson::value v;
+        pangolin::json::value v;
         const char *s = "{ \"a\": true }";
-        string err = picojson::parse(v, s, s + strlen(s));
+        string err = pangolin::json::parse(v, s, s + strlen(s));
         ok(err.empty(), "object no error");
-        ok(v.is<picojson::object>(), "object check type");
-        is(v.get<picojson::object>().size(), size_t(1), "check object size");
+        ok(v.is<pangolin::json::object>(), "object check type");
+        is(v.get<pangolin::json::object>().size(), size_t(1), "check object size");
         ok(v.contains("a"), "check contains property");
         ok(v.get("a").is<bool>(), "check bool property exists");
         is(v.get("a").get<bool>(), true, "check bool property value");
@@ -1281,9 +1277,9 @@ int main(void)
     }
 
 #define TEST(json, msg) do {				\
-    picojson::value v;					\
+    pangolin::json::value v;					\
     const char *s = json;				\
-    string err = picojson::parse(v, s, s + strlen(s));	\
+    string err = pangolin::json::parse(v, s, s + strlen(s));	\
     is(err, string("syntax error at line " msg), msg);	\
 } while (0)
     TEST("falsoa", "1 near: oa");
@@ -1293,92 +1289,92 @@ int main(void)
 #undef TEST
 
     {
-        picojson::value v1, v2;
+        pangolin::json::value v1, v2;
         const char *s;
         string err;
         s = "{ \"b\": true, \"a\": [1,2,\"three\"], \"d\": 2 }";
-        err = picojson::parse(v1, s, s + strlen(s));
+        err = pangolin::json::parse(v1, s, s + strlen(s));
         s = "{ \"d\": 2.0, \"b\": true, \"a\": [1,2,\"three\"] }";
-        err = picojson::parse(v2, s, s + strlen(s));
+        err = pangolin::json::parse(v2, s, s + strlen(s));
         ok((v1 == v2), "check == operator in deep comparison");
     }
 
     {
-        picojson::value v1, v2;
+        pangolin::json::value v1, v2;
         const char *s;
         string err;
         s = "{ \"b\": true, \"a\": [1,2,\"three\"], \"d\": 2 }";
-        err = picojson::parse(v1, s, s + strlen(s));
+        err = pangolin::json::parse(v1, s, s + strlen(s));
         s = "{ \"d\": 2.0, \"a\": [1,\"three\"], \"b\": true }";
-        err = picojson::parse(v2, s, s + strlen(s));
+        err = pangolin::json::parse(v2, s, s + strlen(s));
         ok((v1 != v2), "check != operator for array in deep comparison");
     }
 
     {
-        picojson::value v1, v2;
+        pangolin::json::value v1, v2;
         const char *s;
         string err;
         s = "{ \"b\": true, \"a\": [1,2,\"three\"], \"d\": 2 }";
-        err = picojson::parse(v1, s, s + strlen(s));
+        err = pangolin::json::parse(v1, s, s + strlen(s));
         s = "{ \"d\": 2.0, \"a\": [1,2,\"three\"], \"b\": false }";
-        err = picojson::parse(v2, s, s + strlen(s));
+        err = pangolin::json::parse(v2, s, s + strlen(s));
         ok((v1 != v2), "check != operator for object in deep comparison");
     }
 
     {
-        picojson::value v1, v2;
+        pangolin::json::value v1, v2;
         const char *s;
         string err;
         s = "{ \"b\": true, \"a\": [1,2,\"three\"], \"d\": 2 }";
-        err = picojson::parse(v1, s, s + strlen(s));
-        picojson::object& o = v1.get<picojson::object>();
+        err = pangolin::json::parse(v1, s, s + strlen(s));
+        pangolin::json::object& o = v1.get<pangolin::json::object>();
         o.erase("b");
-        picojson::array& a = o["a"].get<picojson::array>();
-        picojson::array::iterator i;
-        i = std::remove(a.begin(), a.end(), picojson::value(std::string("three")));
+        pangolin::json::array& a = o["a"].get<pangolin::json::array>();
+        pangolin::json::array::iterator i;
+        i = std::remove(a.begin(), a.end(), pangolin::json::value(std::string("three")));
         a.erase(i, a.end());
         s = "{ \"a\": [1,2], \"d\": 2 }";
-        err = picojson::parse(v2, s, s + strlen(s));
+        err = pangolin::json::parse(v2, s, s + strlen(s));
         ok((v1 == v2), "check erase()");
     }
 
-    ok(picojson::value(3.0).serialize() == "3",
+    ok(pangolin::json::value(3.0).serialize() == "3",
        "integral number should be serialized as a integer");
 
     {
         const char* s = "{ \"a\": [1,2], \"d\": 2 }";
-        picojson::null_parse_context ctx;
+        pangolin::json::null_parse_context ctx;
         string err;
-        picojson::_parse(ctx, s, s + strlen(s), &err);
+        pangolin::json::_parse(ctx, s, s + strlen(s), &err);
         ok(err.empty(), "null_parse_context");
     }
 
     {
-        picojson::value v;
+        pangolin::json::value v;
         const char *s = "{ \"a\": 1, \"b\": [ 2, { \"b1\": \"abc\" } ], \"c\": {}, \"d\": [] }";
         string err;
-        err = picojson::parse(v, s, s + strlen(s));
+        err = pangolin::json::parse(v, s, s + strlen(s));
         ok(err.empty(), "parse test data for prettifying output");
         ok(v.serialize() == "{\"a\":1,\"b\":[2,{\"b1\":\"abc\"}],\"c\":{},\"d\":[]}", "non-prettifying output");
         ok(v.serialize(true) == "{\n  \"a\": 1,\n  \"b\": [\n    2,\n    {\n      \"b1\": \"abc\"\n    }\n  ],\n  \"c\": {},\n  \"d\": []\n}\n", "prettifying output");
     }
 
     try {
-        picojson::value v(std::numeric_limits<double>::quiet_NaN());
+        pangolin::json::value v(std::numeric_limits<double>::quiet_NaN());
         ok(false, "should not accept NaN");
     } catch (std::overflow_error e) {
         ok(true, "should not accept NaN");
     }
 
     try {
-        picojson::value v(std::numeric_limits<double>::infinity());
+        pangolin::json::value v(std::numeric_limits<double>::infinity());
         ok(false, "should not accept infinity");
     } catch (std::overflow_error e) {
         ok(true, "should not accept infinity");
     }
 
     try {
-        picojson::value v(123.);
+        pangolin::json::value v(123.);
         ok(! v.is<bool>(), "is<wrong_type>() should return false");
         v.get<bool>();
         ok(false, "get<wrong_type>() should raise an error");
@@ -1388,7 +1384,7 @@ int main(void)
 
 #ifdef PICOJSON_USE_INT64
     {
-        picojson::value v1((int64_t)123);
+        pangolin::json::value v1((int64_t)123);
         ok(v1.is<int64_t>(), "is int64_t");
         ok(v1.is<double>(), "is double as well");
         ok(v1.serialize() == "123", "serialize the value");
@@ -1399,7 +1395,7 @@ int main(void)
         ok(v1.is<double>(), "and is still a double");
 
         const char *s = "-9223372036854775809";
-        ok(picojson::parse(v1, s, s + strlen(s)).empty(), "parse underflowing int64_t");
+        ok(pangolin::json::parse(v1, s, s + strlen(s)).empty(), "parse underflowing int64_t");
         ok(! v1.is<int64_t>(), "underflowing int is not int64_t");
         ok(v1.is<double>(), "underflowing int is double");
         ok(v1.get<double>() + 9.22337203685478e+18 < 65536, "double value is somewhat correct");

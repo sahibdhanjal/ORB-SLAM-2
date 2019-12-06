@@ -25,11 +25,11 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <pangolin/utils/file_utils.h>
 #include <pangolin/utils/uri.h>
+#include <pangolin/utils/file_utils.h>
 
-#include <stdexcept>
 #include <vector>
+#include <stdexcept>
 
 namespace pangolin
 {
@@ -37,7 +37,6 @@ namespace pangolin
 Uri ParseUri(const std::string &str_uri)
 {
     Uri uri;
-    uri.full_uri = str_uri;
 
     // Find Scheme delimiter
     size_t npos = 0;

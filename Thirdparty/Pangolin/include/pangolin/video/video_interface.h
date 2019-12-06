@@ -27,24 +27,19 @@
 
 #pragma once
 
-#include <pangolin/utils/picojson.h>
 #include <pangolin/video/stream_info.h>
+#include <pangolin/utils/picojson.h>
 
-#include <memory>
 #include <vector>
+#include <memory>
 
-#define PANGO_HAS_TIMING_DATA        "has_timing_data"
 #define PANGO_HOST_RECEPTION_TIME_US "host_reception_time_us"
 #define PANGO_CAPTURE_TIME_US        "capture_time_us"
 #define PANGO_EXPOSURE_US            "exposure_us"
 #define PANGO_GAMMA                  "gamma"
-// analog gain is in linear scale and not dB
-#define PANGO_ANALOG_GAIN            "analog_gain" 
+#define PANGO_ANALOG_GAIN            "analog_gain"
 #define PANGO_ANALOG_BLACK_LEVEL     "analog_black_level"
 #define PANGO_SENSOR_TEMPERATURE_C   "sensor_temperature_C"
-#define PANGO_ESTIMATED_CENTER_CAPTURE_TIME_US "estimated_center_capture_time_us"
-#define PANGO_JOIN_OFFSET_US         "join_offset_us"
-#define PANGO_FRAME_COUNTER          "frame_counter"
 
 namespace pangolin {
 
@@ -82,14 +77,10 @@ struct PANGOLIN_EXPORT GenicamVideoInterface
 {
     virtual ~GenicamVideoInterface() {}
 
-    virtual bool GetParameter(const std::string& name, std::string& result) = 0;
+    virtual std::string GetParameter(const std::string& name) = 0;
 
-    virtual bool SetParameter(const std::string& name, const std::string& value) = 0;
+    virtual void SetParameter(const std::string& name, const std::string& value) = 0;
 
-    virtual size_t CameraCount() const
-    {
-        return 1;
-    }
 };
 
 struct PANGOLIN_EXPORT BufferAwareVideoInterface
@@ -109,10 +100,10 @@ struct PANGOLIN_EXPORT VideoPropertiesInterface
     virtual ~VideoPropertiesInterface() {}
 
     //! Access JSON properties of device
-    virtual const picojson::value& DeviceProperties() const = 0;
+    virtual const json::value& DeviceProperties() const = 0;
 
     //! Access JSON properties of most recently captured frame
-    virtual const picojson::value& FrameProperties() const = 0;
+    virtual const json::value& FrameProperties() const = 0;
 };
 
 enum UvcRequestCode {
@@ -158,10 +149,6 @@ struct PANGOLIN_EXPORT VideoUvcInterface
 {
     virtual ~VideoUvcInterface() {}
     virtual int IoCtrl(uint8_t unit, uint8_t ctrl, unsigned char* data, int len, UvcRequestCode req_code) = 0;
-    virtual bool GetExposure(int& exp_us) = 0;
-    virtual bool SetExposure(int exp_us) = 0;
-    virtual bool GetGain(float& gain) = 0;
-    virtual bool SetGain(float gain) = 0;
 };
 
 struct PANGOLIN_EXPORT VideoPlaybackInterface
@@ -169,15 +156,14 @@ struct PANGOLIN_EXPORT VideoPlaybackInterface
     virtual ~VideoPlaybackInterface() {}
 
     /// Return monotonic id of current frame
-    /// The 'current frame' is the frame returned from the last successful call to Grab
-    virtual size_t GetCurrentFrameId() const = 0;
+    virtual int GetCurrentFrameId() const = 0;
 
     /// Return total number of frames to be captured from device,
-    /// or 0 if unknown.
-    virtual size_t GetTotalFrames() const = 0;
+    /// or std::numeric_limits<int>::max() on failure.
+    virtual int GetTotalFrames() const = 0;
 
-    /// Return frameid on success, or next frame on failure
-    virtual size_t Seek(size_t frameid) = 0;
+    /// Return -1 on failure, frameid on success
+    virtual int Seek(int frameid) = 0;
 };
 
 }

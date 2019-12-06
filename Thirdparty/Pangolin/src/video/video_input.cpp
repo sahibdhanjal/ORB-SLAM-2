@@ -47,8 +47,9 @@ VideoInput::VideoInput(
 void VideoInput::Open(
     const std::string& input_uri,
     const std::string& output_uri
-    )
+    ) 
 {
+    str_uri_input = input_uri;
     uri_input = ParseUri(input_uri);
     uri_output = ParseUri(output_uri);
 
@@ -59,19 +60,21 @@ void VideoInput::Open(
 
     // Start off playing from video_src
     video_src = OpenVideo(input_uri);
+    Source();
+}
 
-    // Reset state
-    frame_num = 0;
-    videos.resize(1);
-    videos[0] = video_src.get();
+void VideoInput::Reset()
+{
+    Close();
+
+    // Create video device
+    video_src = OpenVideo(uri_input);
+    Source();
 }
 
 void VideoInput::Close()
 {
-    // Reset this first so that recording data gets written out to disk ASAP.
-    video_recorder.reset();
-
-    video_src.reset();
+    video_src.release();
     videos.clear();
 }
 
@@ -81,11 +84,6 @@ VideoInput::~VideoInput()
 }
 
 const std::string& VideoInput::LogFilename() const
-{
-    return uri_output.url;
-}
-
-std::string& VideoInput::LogFilename()
 {
     return uri_output.url;
 }
@@ -115,9 +113,11 @@ bool VideoInput::Grab( unsigned char* buffer, std::vector<Image<unsigned char> >
 void VideoInput::InitialiseRecorder()
 {
     video_recorder.reset();
+    video_file.reset();
+
     video_recorder = OpenVideoOutput(uri_output);
     video_recorder->SetStreams(
-        video_src->Streams(), uri_input.full_uri,
+        video_src->Streams(), str_uri_input,
         GetVideoDeviceProperties(video_src.get())
     );
 }
@@ -149,6 +149,37 @@ void VideoInput::RecordOneFrame()
     videos[0] = video_src.get();
 }
 
+void VideoInput::Play(bool realtime)
+{
+    video_file.reset();
+    video_src->Stop();
+    video_recorder.reset();
+
+    video_file = OpenVideo(
+        realtime ? "file:[realtime]//" + uri_output.url :
+                   uri_output.url
+    );
+
+    frame_num = 0;
+
+    // Switch sub-video
+    videos.resize(1);
+    videos[0] = video_file.get();
+}
+
+void VideoInput::Source()
+{
+    video_file.reset();
+    video_recorder.reset();
+
+    frame_num = 0;
+
+    // Switch sub-video
+    videos.resize(1);
+    videos[0] = video_src.get();
+    video_src->Start();
+}
+
 size_t VideoInput::SizeBytes() const
 {
     if( !video_src ) throw VideoException("No video source open");
@@ -168,7 +199,7 @@ void VideoInput::Start()
 void VideoInput::Stop()
 {
     if(IsRecording()) {
-        video_recorder.reset();
+        video_recorder.release();
     }else{
         video_src->Stop();
     }
@@ -180,14 +211,18 @@ bool VideoInput::GrabNext( unsigned char* image, bool wait )
 
     const bool should_record = (record_continuous && !(frame_num % record_frame_skip)) || record_once;
 
-    const bool success = video_src->GrabNext(image, wait);
-
-    if( should_record && video_recorder != 0 && success) {
-        video_recorder->WriteStreams(image, GetVideoFrameProperties(video_src.get()) );
-        record_once = false;
+    if( should_record && video_recorder != 0 ) {
+        bool success = video_src->GrabNext(image, wait);
+        if( success ) {
+            video_recorder->WriteStreams(image, GetVideoFrameProperties(video_src.get()) );
+            record_once = false;
+        }
+        return success;
+    }else if( video_file != 0 ) {
+        return video_file->GrabNext(image,wait);
+    }else{
+        return video_src->GrabNext(image,wait);
     }
-
-    return success;
 }
 
 bool VideoInput::GrabNewest( unsigned char* image, bool wait )
@@ -195,15 +230,25 @@ bool VideoInput::GrabNewest( unsigned char* image, bool wait )
     frame_num++;
 
     const bool should_record = (record_continuous && !(frame_num % record_frame_skip)) || record_once;
-    const bool success = video_src->GrabNewest(image,wait);
 
-    if( should_record && video_recorder != 0 && success)
+    if( should_record && video_recorder != 0 )
     {
-        video_recorder->WriteStreams(image, GetVideoFrameProperties(video_src.get()) );
-        record_once = false;
+        bool success = video_src->GrabNewest(image,wait);
+        if( success) {
+            video_recorder->WriteStreams(image, GetVideoFrameProperties(video_src.get()) );
+            record_once = false;
+        }
+        return success;
+    }else if( video_file != 0 ) {
+        return video_file->GrabNewest(image,wait);
+    }else{
+        return video_src->GrabNewest(image,wait);
     }
+}
 
-    return success;
+int VideoInput::FrameId()
+{
+    return frame_num;
 }
 
 void VideoInput::SetTimelapse(size_t one_in_n_frames)
@@ -215,6 +260,13 @@ bool VideoInput::IsRecording() const
 {
     return video_recorder != 0;
 }
+
+bool VideoInput::IsPlaying() const
+{
+    return video_file != 0;
+}
+
+
 
 }
 

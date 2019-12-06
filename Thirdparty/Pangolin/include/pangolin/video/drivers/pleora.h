@@ -110,11 +110,11 @@ public:
 
     void SetupTrigger(bool triggerActive, int64_t triggerSource, int64_t acquisitionMode);
 
-    const picojson::value& DeviceProperties() const {
+    const json::value& DeviceProperties() const {
         return device_properties;
     }
 
-    const picojson::value& FrameProperties() const {
+    const json::value& FrameProperties() const {
         return frame_properties;
     }
 
@@ -159,8 +159,8 @@ protected:
     void RetriveAllAvailableBuffers(uint32_t timeout);
 
     std::vector<StreamInfo> streams;
-    picojson::value device_properties;
-    picojson::value frame_properties;
+    json::value device_properties;
+    json::value frame_properties;
 
     size_t size_bytes;
 

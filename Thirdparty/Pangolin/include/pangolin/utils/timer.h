@@ -27,70 +27,55 @@
 
 #pragma once
 
-#include <chrono>
-#include <thread>
-
 #include <pangolin/platform.h>
+#include <stdint.h>
+
+#if defined(_UNIX_)
+#  include <sys/time.h>
+#endif
 
 namespace pangolin
 {
 
-// These methods exist for backwards compatibility.
-// They are deprecated in favour of direct use of std::chrono in C++11
+#if defined(_UNIX_)
+    typedef timeval basetime;
+#elif defined(_WIN_)
+    typedef int64_t basetime;
+#endif
 
-using baseclock = std::chrono::steady_clock;
-using basetime = baseclock::time_point;
-static_assert(baseclock::is_steady, "baseclock must be steady to be robust against system time settings");
+PANGOLIN_EXPORT
+basetime TimeNow();
 
-inline basetime TimeNow()
-{
-    return baseclock::now();
-}
+PANGOLIN_EXPORT
+double Time_s(basetime t);
 
-inline double Time_s(basetime t)
-{
-    using namespace std::chrono;
-    return duration_cast<seconds>( t.time_since_epoch() ).count();
-}
+PANGOLIN_EXPORT
+int64_t Time_us(basetime t);
 
-inline int64_t Time_us(basetime t)
-{
-    using namespace std::chrono;
-    return duration_cast<microseconds>( t.time_since_epoch() ).count();
-}
+PANGOLIN_EXPORT
+double TimeDiff_s(basetime start, basetime end);
 
-inline double TimeDiff_s(basetime start, basetime end)
-{
-    const baseclock::duration d = end - start;
-    return Time_s( basetime() + d);
-}
+PANGOLIN_EXPORT
+int64_t TimeDiff_us(basetime start, basetime end);
 
-inline int64_t TimeDiff_us(basetime start, basetime end)
-{
-    const baseclock::duration d = end - start;
-    return Time_us( basetime() + d);
-}
+PANGOLIN_EXPORT
+basetime TimeFromSeconds(double seconds);
 
-inline basetime TimeAdd(basetime t1, basetime t2)
-{
-
-    return t1 + t2.time_since_epoch();
-}
+PANGOLIN_EXPORT
+basetime TimeAdd(basetime t1, basetime t2);
 
 inline double TimeNow_s()
 {
     return Time_s(TimeNow());
 }
 
-inline int64_t TimeNow_us()
-{
-    return Time_us(TimeNow());
-}
-
 inline basetime WaitUntil(basetime t)
 {
-    std::this_thread::sleep_until(t);
-    return TimeNow();
+    // TODO: use smarter sleep!
+    basetime currtime = TimeNow();
+    while( TimeDiff_s(currtime,t) > 0 )
+        currtime = TimeNow();
+    return currtime;
 }
 
 struct Timer

@@ -30,7 +30,6 @@
 #include <pangolin/pangolin.h>
 #include <pangolin/video/video.h>
 
-#include <memory>
 #include <pangolin/utils/fix_size_buffer_queue.h>
 
 namespace pangolin
@@ -63,9 +62,9 @@ public:
     //! Implement VideoInput::GrabNewest()
     bool GrabNewest( unsigned char* image, bool wait = true );
 
-    const picojson::value& DeviceProperties() const;
+    const json::value& DeviceProperties() const;
 
-    const picojson::value& FrameProperties() const;
+    const json::value& FrameProperties() const;
 
     uint32_t AvailableFrames() const;
 
@@ -84,15 +83,9 @@ protected:
         {
         }
 
-        // No copy constructor.
-        GrabResult(const GrabResult& o) = delete;
-
-        // Default move constructor
-        GrabResult(GrabResult&& o) = default;
-
         bool return_status;
-        std::unique_ptr<unsigned char[]> buffer;
-        picojson::value frame_properties;
+        unsigned char* buffer;
+        json::value frame_properties;
     };
 
     std::unique_ptr<VideoInterface> src;
@@ -105,8 +98,8 @@ protected:
     std::mutex cvMtx;
     std::thread grab_thread;
 
-    mutable picojson::value device_properties;
-    picojson::value frame_properties;
+    mutable json::value device_properties;
+    json::value frame_properties;
 };
 
 }

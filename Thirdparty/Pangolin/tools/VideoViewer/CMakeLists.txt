@@ -27,7 +27,7 @@ MimeType=application/x-pango;image/x-portable-graymap;image/x-portable-pixmap;im
     )
 
     add_custom_target(
-        register-mime-info-videoviewer
+        install-mime-info
         COMMAND mkdir -p $ENV{HOME}/.local/share/mime/packages/
         COMMAND mkdir -p $ENV{HOME}/.local/share/applications/
         COMMAND mkdir -p $ENV{HOME}/.local/share/icons/hicolor/scalable/mimetypes/

@@ -40,12 +40,8 @@
     #endif
 
     // Don't define min / max macros in windows.h or other unnecessary macros
-    #ifndef NOMINMAX
-    #  define NOMINMAX
-    #endif
-    #ifndef WIN32_LEAN_AND_MEAN
-    #  define WIN32_LEAN_AND_MEAN
-    #endif
+    #define NOMINMAX
+    #define WIN32_LEAN_AND_MEAN
     #include <Windows.h>
 
     // Undef nuisance Windows.h macros which interfere with our methods
@@ -55,7 +51,9 @@
     #undef ERROR
 #endif
 
-#include <GL/glew.h>
+#ifdef HAVE_GLEW
+    #include <GL/glew.h>
+#endif
 
 #ifdef HAVE_GLES
     #if defined(_ANDROID_)

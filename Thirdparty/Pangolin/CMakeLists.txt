@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8.12)
+cmake_minimum_required(VERSION 2.6)
 project("Pangolin")
 set(PANGOLIN_VERSION_MAJOR 0)
 set(PANGOLIN_VERSION_MINOR 5)
@@ -10,18 +10,13 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/CMakeMod
 include(SetPlatformVars)
 
 SET(CPACK_GENERATOR "DEB")
-
 SET(CPACK_DEBIAN_PACKAGE_MAINTAINER "Steven Lovegrove")
 SET(CPACK_PACKAGE_VERSION_MAJOR ${PANGOLIN_VERSION_MAJOR})
 SET(CPACK_PACKAGE_VERSION_MINOR ${PANGOLIN_VERSION_MINOR})
 SET(CPACK_PACKAGE_VERSION_PATCH "0")
 include(CPack)
 
-option( BUILD_TESTS "Build Tests" ON )
-option( BUILD_TOOLS "Build Examples" ON )
-option( BUILD_EXAMPLES "Build Tools" ON )
-
-set (CMAKE_CXX_STANDARD 14)
+option( BUILD_EXAMPLES "Build Examples" ON )
 
 if(_WIN_)
     option( BUILD_SHARED_LIBS    "Build Shared Library" OFF)
@@ -51,7 +46,10 @@ else()
 endif()
 
 if(NOT MSVC)
-    set( CMAKE_CXX_FLAGS "-Wall -Wextra ${CMAKE_CXX_FLAGS}" )
+    set( CMAKE_CXX_FLAGS "-std=c++0x -Wall -Wextra ${CMAKE_CXX_FLAGS}" )
+    if(_CLANG_)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
+    endif()
 endif()
 
 if(ANDROID)
@@ -80,30 +78,21 @@ endif()
 
 string(TOLOWER ${PROJECT_NAME} LIBRARY_NAME)
 
-# make an uninstall target
+# make an uninstall target 
 configure_file(
-    "${CMAKE_CURRENT_SOURCE_DIR}/cmake_uninstall.cmake.in"
-    "${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake"
-    IMMEDIATE @ONLY
+ 	"${CMAKE_CURRENT_SOURCE_DIR}/cmake_uninstall.cmake.in"
+  	"${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake"
+  	IMMEDIATE @ONLY
 )
 
-add_custom_target(pangolin_uninstall
+add_custom_target(uninstall
   "${CMAKE_COMMAND}" -P "${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake")
 
 add_subdirectory("external")
 add_subdirectory("src")
 
-if(BUILD_TESTS)
-    set(Pangolin_DIR ${Pangolin_BINARY_DIR}/src)
-    add_subdirectory("test")
-endif()
-
-if(BUILD_TOOLS)
-    set(Pangolin_DIR ${Pangolin_BINARY_DIR}/src)
-    add_subdirectory(tools)
-endif()
-
 if(BUILD_EXAMPLES)
-    set(Pangolin_DIR ${Pangolin_BINARY_DIR}/src)
-    add_subdirectory(examples)
+  set(Pangolin_DIR ${Pangolin_BINARY_DIR}/src)
+  add_subdirectory(examples)
+  add_subdirectory(tools)
 endif()

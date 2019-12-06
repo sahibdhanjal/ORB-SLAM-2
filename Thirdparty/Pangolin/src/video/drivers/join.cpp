@@ -25,8 +25,8 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <pangolin/factory/factory_registry.h>
 #include <pangolin/video/drivers/join.h>
+#include <pangolin/factory/factory_registry.h>
 #include <pangolin/video/iostream_operators.h>
 
 //#define DEBUGJOIN
@@ -104,20 +104,10 @@ bool JoinVideo::Sync(int64_t tolerance_us, double transfer_bandwidth_gbps)
 
     for(size_t s=0; s< src.size(); ++s)
     {
-       picojson::value props = GetVideoDeviceProperties(src[s]);
-       if(!props.get_value(PANGO_HAS_TIMING_DATA, false)) {
-           if (props.contains("streams")) {
-               picojson::value streams = props["streams"];
-               for (size_t i=0; i<streams.size(); ++i) {
-                    if(!streams[i].get_value(PANGO_HAS_TIMING_DATA, false)) {
-                        sync_tolerance_us = 0;
-                        return false;
-                    }
-               }
-           } else {
-               sync_tolerance_us = 0;
-               return false;
-           }
+       VideoPropertiesInterface* vpi = dynamic_cast<VideoPropertiesInterface*>(src[s]);
+       if(!vpi) {
+           sync_tolerance_us = 0;
+           return false;
        }
     }
 
@@ -127,45 +117,22 @@ bool JoinVideo::Sync(int64_t tolerance_us, double transfer_bandwidth_gbps)
     return true;
 }
 
-// Assuming that src_index supports VideoPropertiesInterface and has a valid PANGO_HOST_RECEPTION_TIME_US, or PANGO_ESTIMATED_CENTER_CAPTURE_TIME_US
-// returns a capture time adjusted for transfer time and when possible also for exposure.
-int64_t JoinVideo::GetAdjustedCaptureTime(size_t src_index)
+// Assuming that src_index supports VideoPropertiesInterface and has a valid PANGO_HOST_RECEPTION_TIME_US,
+// returns end-of-capture time.
+int64_t JoinVideo::GetEndOfCaptureTime(size_t src_index)
 {
-    picojson::value props = GetVideoFrameProperties(src[src_index]);
-    if(props.contains(PANGO_ESTIMATED_CENTER_CAPTURE_TIME_US)) {
-        // great, the driver already gave us an estimated center of capture
-        return props[PANGO_ESTIMATED_CENTER_CAPTURE_TIME_US].get<int64_t>();
-
+    VideoPropertiesInterface* vidpi = dynamic_cast<VideoPropertiesInterface*>(src[src_index]);
+    PANGO_ENSURE(vidpi);
+    if(vidpi->FrameProperties().contains(PANGO_HOST_RECEPTION_TIME_US)) {
+        int64_t transfer_time_us = 0;
+        if( transfer_bandwidth_bytes_per_us > 0 ) {
+            transfer_time_us =src[src_index]->SizeBytes() / transfer_bandwidth_bytes_per_us;
+        }
+        return vidpi->FrameProperties()[PANGO_HOST_RECEPTION_TIME_US].get<int64_t>() - transfer_time_us;
     } else {
-        if(props.contains(PANGO_HOST_RECEPTION_TIME_US)) {
-            int64_t transfer_time_us = 0;
-            if( transfer_bandwidth_bytes_per_us > 0 ) {
-                transfer_time_us = src[src_index]->SizeBytes() / transfer_bandwidth_bytes_per_us;
-            }
-            return props[PANGO_HOST_RECEPTION_TIME_US].get<int64_t>() - transfer_time_us;
-        } else {
-            if (props.contains("streams")) {
-                picojson::value streams = props["streams"];
-
-                if(streams.size()>0){
-                     if(streams[0].contains(PANGO_ESTIMATED_CENTER_CAPTURE_TIME_US)) {
-                         // great, the driver already gave us an estimated center of capture
-                         return streams[0][PANGO_ESTIMATED_CENTER_CAPTURE_TIME_US].get<int64_t>();
-                     }
-                     else if( streams[0].contains(PANGO_HOST_RECEPTION_TIME_US)) {
-                         int64_t transfer_time_us = 0;
-                         if( transfer_bandwidth_bytes_per_us > 0 ) {
-                             transfer_time_us = src[src_index]->SizeBytes() / transfer_bandwidth_bytes_per_us;
-                         }
-                        return streams[0][PANGO_HOST_RECEPTION_TIME_US].get<int64_t>() - transfer_time_us;
-                    }
-                }
-           }
-       }
-
-       PANGO_ENSURE(false, "JoinVideo: Stream % does contain any timestamp info.\n", src_index);
-       return 0;
-   }
+        PANGO_ENSURE(false, "JoinVideo: Stream % returned image without timestamp.\n", src_index);
+        return 0;
+    }
 }
 
 bool JoinVideo::GrabNext(unsigned char* image, bool wait)
@@ -177,12 +144,8 @@ bool JoinVideo::GrabNext(unsigned char* image, bool wait)
     TSTART()
     DBGPRINT("Entering GrabNext:")
     for(size_t s=0; s<src.size(); ++s) {
-        if( src[s]->GrabNext(image+offset,wait) ) {
-            if(sync_tolerance_us > 0) {
-                capture_us[s] = GetAdjustedCaptureTime(s);
-            }else{
-                capture_us[s] = std::numeric_limits<int64_t>::max();
-            }
+        if( src[s]->GrabNext(image+offset,wait) && sync_tolerance_us > 0 ) {
+            capture_us[s] = GetEndOfCaptureTime(s);
         }
         offsets[s] = offset;
         offset += src[s]->SizeBytes();
@@ -200,7 +163,7 @@ bool JoinVideo::GrabNext(unsigned char* image, bool wait)
         auto range = std::minmax_element(capture_us.begin(), capture_us.end());
         if( (*range.second - *range.first) > sync_tolerance_us)
         {
-            pango_print_warn("JoinVideo: Source timestamps span  %lu us, not within %lu us. Ignoring frames, trying to sync...\n", (unsigned long)((*range.second - *range.first)), (unsigned long)sync_tolerance_us);
+            pango_print_warn("JoinVideo: Source timestamps not within %lu us. Ignoring frames, trying to sync...\n", (unsigned long)sync_tolerance_us);
 
             // Attempt to resync...
             for(size_t n=0; n<10; ++n){
@@ -208,8 +171,8 @@ bool JoinVideo::GrabNext(unsigned char* image, bool wait)
                     // Catch up frames that are behind
                     if(capture_us[s] < (*range.second - sync_tolerance_us))
                     {
-                        if(src[s]->GrabNext(image+offsets[s],true)) {
-                            capture_us[s] = GetAdjustedCaptureTime(s);
+                        if(src[s]->GrabNewest(image+offsets[s],false)) {
+                            capture_us[s] = GetEndOfCaptureTime(s);
                         }
                     }
                 }
@@ -225,10 +188,7 @@ bool JoinVideo::GrabNext(unsigned char* image, bool wait)
             TGRABANDPRINT("    IN SYNC oldest:%ld newest:%ld delta:%ld", *range.first, *range.second, (*range.second - *range.first));
             return true;
         }
-    }
-    else
-    {
-        pango_print_warn("JoinVideo: sync_tolerance_us = 0, frames are not synced!\n");
+    } else {
         return true;
     }
 }
@@ -289,7 +249,13 @@ bool JoinVideo::GrabNewest( unsigned char* image, bool wait )
           got_frame = src[0]->GrabNext(image+offset,false);
           if(got_frame) {
               if(sync_tolerance_us > 0) {
-                  rt = GetAdjustedCaptureTime(0);
+                  VideoPropertiesInterface* vidpi = dynamic_cast<VideoPropertiesInterface*>(src[0]);
+                  if(vidpi->FrameProperties().contains(PANGO_HOST_RECEPTION_TIME_US)) {
+                      rt = vidpi->FrameProperties()[PANGO_HOST_RECEPTION_TIME_US].get<int64_t>();
+                  } else {
+                      pango_print_error("Stream %u in join does not support startup_sync_us option.\n", 0);
+                      throw std::runtime_error("Grab newest stream in join does not support startup_sync_us option.\n");
+                  }
               }
               first_stream_backlog++;
               grabbed_any = true;
@@ -308,7 +274,12 @@ bool JoinVideo::GrabNewest( unsigned char* image, bool wait )
           for (int i=0; i<first_stream_backlog; i++){
               grabbed_any |= src[s]->GrabNext(image+offset,true);
               if(sync_tolerance_us > 0) {
-                  rt = GetAdjustedCaptureTime(s);
+                  VideoPropertiesInterface* vidpi = dynamic_cast<VideoPropertiesInterface*>(src[s]);
+                  if(vidpi->FrameProperties().contains(PANGO_HOST_RECEPTION_TIME_US)) {
+                      rt = vidpi->FrameProperties()[PANGO_HOST_RECEPTION_TIME_US].get<int64_t>();
+                  } else {
+                      pango_print_error("Stream %lu in join does not support startup_sync_us option.\n", (unsigned long)s);
+                  }
               }
           }
           offsets.push_back(offset);
@@ -330,7 +301,10 @@ bool JoinVideo::GrabNewest( unsigned char* image, bool wait )
                       if(reception_times[s] < (newest - sync_tolerance_us)) {
                           VideoInterface& vid = *src[s];
                           if(vid.GrabNewest(image+offsets[s],false)) {
-                              rt = GetAdjustedCaptureTime(s);
+                              VideoPropertiesInterface* vidpi = dynamic_cast<VideoPropertiesInterface*>(src[s]);
+                              if(vidpi->FrameProperties().contains(PANGO_HOST_RECEPTION_TIME_US)) {
+                                  rt = vidpi->FrameProperties()[PANGO_HOST_RECEPTION_TIME_US].get<int64_t>();
+                              }
                               if(newest < rt) newest = rt;
                               if(oldest > rt) oldest = rt;
                               reception_times[s] = rt;
@@ -387,7 +361,7 @@ std::vector<std::string> SplitBrackets(const std::string src, char open = '{', c
 
 PANGOLIN_REGISTER_FACTORY(JoinVideo)
 {
-    struct JoinVideoFactory final : public FactoryInterface<VideoInterface> {
+    struct JoinVideoFactory : public FactoryInterface<VideoInterface> {
         std::unique_ptr<VideoInterface> Open(const Uri& uri) override {
 
             std::vector<std::string> uris = SplitBrackets(uri.url);

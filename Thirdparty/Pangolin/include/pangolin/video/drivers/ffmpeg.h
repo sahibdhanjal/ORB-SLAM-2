@@ -55,7 +55,7 @@ namespace pangolin
 class PANGOLIN_EXPORT FfmpegVideo : public VideoInterface
 {
 public:
-    FfmpegVideo(const std::string filename, const std::string fmtout = "RGB24", const std::string codec_hint = "", bool dump_info = false, int user_video_stream = -1, ImageDim size = ImageDim(0,0));
+    FfmpegVideo(const std::string filename, const std::string fmtout = "RGB24", const std::string codec_hint = "", bool dump_info = false, int user_video_stream = -1);
     ~FfmpegVideo();
     
     //! Implement VideoInput::Start()
@@ -77,7 +77,7 @@ public:
     bool GrabNewest( unsigned char* image, bool wait = true );
     
 protected:
-    void InitUrl(const std::string filename, const std::string fmtout = "RGB24", const std::string codec_hint = "", bool dump_info = false , int user_video_stream = -1, ImageDim size= ImageDim(0,0));
+    void InitUrl(const std::string filename, const std::string fmtout = "RGB24", const std::string codec_hint = "", bool dump_info = false , int user_video_stream = -1);
     
     std::vector<StreamInfo> streams;
     
@@ -139,27 +139,18 @@ public:
 protected:
     std::vector<StreamInfo> streams;
     
-    struct ConvertContext
-    {
-        SwsContext*     img_convert_ctx;
-        AVPixelFormat   fmtsrc;
-        AVPixelFormat   fmtdst;
-        AVFrame*        avsrc;
-        AVFrame*        avdst; 
-        size_t          w,h;
-        size_t          src_buffer_offset;
-        size_t          dst_buffer_offset;
-        
-        void convert(const unsigned char * src, unsigned char* dst);
-        
-    };
-    
     std::unique_ptr<VideoInterface> videoin;
-    std::unique_ptr<unsigned char[]> input_buffer;
-
-    std::vector<ConvertContext> converters;
-    //size_t src_buffer_size;
-    size_t dst_buffer_size;
+    SwsContext *img_convert_ctx;
+    
+    AVPixelFormat     fmtsrc;
+    AVPixelFormat     fmtdst;
+    AVFrame*        avsrc;
+    AVFrame*        avdst;
+    uint8_t*        bufsrc;
+    uint8_t*        bufdst;
+    int             numbytessrc;
+    int             numbytesdst;
+    unsigned        w,h;
 };
 
 #if (LIBAVFORMAT_VERSION_MAJOR > 55) || ((LIBAVFORMAT_VERSION_MAJOR == 55) && (LIBAVFORMAT_VERSION_MINOR >= 7))
@@ -174,16 +165,13 @@ class PANGOLIN_EXPORT FfmpegVideoOutput
 {
     friend class FfmpegVideoOutputStream;
 public:
-    FfmpegVideoOutput( const std::string& filename, int base_frame_rate, int bit_rate, bool flip = false );
+    FfmpegVideoOutput( const std::string& filename, int base_frame_rate, int bit_rate );
     ~FfmpegVideoOutput();
 
-    const std::vector<StreamInfo>& Streams() const override;
-
-    void SetStreams(const std::vector<StreamInfo>& streams, const std::string& uri, const picojson::value& properties) override;
-
-    int WriteStreams(const unsigned char* data, const picojson::value& frame_properties) override;
-
-    bool IsPipe() const override;
+    const std::vector<StreamInfo>& Streams() const;
+    void SetStreams(const std::vector<StreamInfo>& streams, const std::string& uri, const json::value& properties);
+    int WriteStreams(const unsigned char* data, const json::value& frame_properties) override;
+    bool IsPipe() const;
     
 protected:
     void Initialise(std::string filename);
@@ -201,7 +189,6 @@ protected:
     int base_frame_rate;
     int bit_rate;
     bool is_pipe;
-    bool flip;
 };
 
 }

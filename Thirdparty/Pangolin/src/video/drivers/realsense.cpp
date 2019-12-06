@@ -71,15 +71,15 @@ bool RealSenseVideo::GrabNewest(unsigned char* image, bool wait) {
   return GrabNext(image, wait);
 }
 
-size_t RealSenseVideo::GetCurrentFrameId() const {
+int RealSenseVideo::GetCurrentFrameId() const {
   return current_frame_index;
 }
 
-size_t RealSenseVideo::GetTotalFrames() const {
+int RealSenseVideo::GetTotalFrames() const {
   return total_frames;
 }
 
-size_t RealSenseVideo::Seek(size_t frameid) {
+int RealSenseVideo::Seek(int frameid) {
   // TODO
   return -1;
 }

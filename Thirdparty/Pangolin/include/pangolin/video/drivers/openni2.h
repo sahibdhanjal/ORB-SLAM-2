@@ -72,41 +72,41 @@ public:
     ~OpenNi2Video();
 
     //! Implement VideoInput::Start()
-    void Start() override;
+    void Start();
 
     //! Implement VideoInput::Stop()
-    void Stop() override;
+    void Stop();
 
     //! Implement VideoInput::SizeBytes()
-    size_t SizeBytes() const override;
+    size_t SizeBytes() const;
 
     //! Implement VideoInput::Streams()
-    const std::vector<StreamInfo>& Streams() const override;
+    const std::vector<StreamInfo>& Streams() const;
 
     //! Implement VideoInput::GrabNext()
-    bool GrabNext( unsigned char* image, bool wait = true ) override;
+    bool GrabNext( unsigned char* image, bool wait = true );
 
     //! Implement VideoInput::GrabNewest()
-    bool GrabNewest( unsigned char* image, bool wait = true ) override;
+    bool GrabNewest( unsigned char* image, bool wait = true );
 
     //! Implement VideoPropertiesInterface::Properties()
-    const picojson::value& DeviceProperties() const  override{
+    const json::value& DeviceProperties() const {
         return device_properties;
     }
 
     //! Implement VideoPropertiesInterface::Properties()
-    const picojson::value& FrameProperties() const  override{
+    const json::value& FrameProperties() const {
         return frame_properties;
     }
 
     //! Implement VideoPlaybackInterface::GetCurrentFrameId
-    size_t GetCurrentFrameId() const override;
+    int GetCurrentFrameId() const;
 
     //! Implement VideoPlaybackInterface::GetTotalFrames
-    size_t GetTotalFrames() const override;
+    int GetTotalFrames() const ;
 
     //! Implement VideoPlaybackInterface::Seek
-    size_t Seek(size_t frameid) override;
+    int Seek(int frameid);
 
     openni::VideoStream* GetVideoStream(int stream);
 
@@ -130,18 +130,19 @@ protected:
     std::vector<StreamInfo> streams;
     size_t sizeBytes;
 
-    picojson::value device_properties;
-    picojson::value frame_properties;
-    picojson::value* streams_properties;
+    json::value device_properties;
+    json::value frame_properties;
+    json::value* streams_properties;
 
     bool use_depth;
     bool use_ir;
     bool use_rgb;
     bool depth_to_color;
     bool use_ir_and_rgb;
+    bool fromFile;
 
-    size_t current_frame_index;
-    size_t total_frames;
+    int current_frame_index;
+    int total_frames;
 };
 
 }

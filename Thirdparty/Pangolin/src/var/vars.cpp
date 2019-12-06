@@ -33,6 +33,7 @@
 
 #include <iostream>
 #include <fstream>
+#include <sstream>
 
 using namespace std;
 
@@ -179,17 +180,17 @@ void LoadJsonFile(const std::string& filename, const string &prefix)
 {
     bool some_change = false;
 
-    picojson::value file_json(picojson::object_type,true);
+    json::value file_json(json::object_type,true);
     std::ifstream f(filename);
     if(f.is_open()) {
-        const std::string err = picojson::parse(file_json,f);
+        const std::string err = json::parse(file_json,f);
         if(err.empty()) {
             if(file_json.contains("vars") ) {
-                picojson::value vars = file_json["vars"];
-                if(vars.is<picojson::object>()) {
-                    for(picojson::object::iterator
-                        i = vars.get<picojson::object>().begin();
-                        i!= vars.get<picojson::object>().end();
+                json::value vars = file_json["vars"];
+                if(vars.is<json::object>()) {
+                    for(json::object::iterator
+                        i = vars.get<json::object>().begin();
+                        i!= vars.get<json::object>().end();
                         ++i)
                     {
                         const std::string& name = i->first;
@@ -225,7 +226,7 @@ void LoadJsonFile(const std::string& filename, const string &prefix)
 PANGOLIN_EXPORT
 void SaveJsonFile(const std::string& filename, const string &prefix)
 {
-    picojson::value vars(picojson::object_type,true);
+    json::value vars(json::object_type,true);
 
     for(VarState::VarStoreAdditions::const_iterator
         i  = VarState::I().var_adds.begin();
@@ -237,14 +238,14 @@ void SaveJsonFile(const std::string& filename, const string &prefix)
             try{
                 const std::string val = VarState::I()[name]->str->Get();
                 vars[name] = val;
-            }catch(const BadInputException&)
+            }catch(BadInputException)
             {
                 // Ignore things we can't serialise
             }
         }
     }
 
-    picojson::value file_json(picojson::object_type,true);
+    json::value file_json(json::object_type,true);
     file_json["pangolin_version"] = PANGOLIN_VERSION_STRING;
     file_json["vars"] = vars;
 

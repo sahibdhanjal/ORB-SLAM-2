@@ -39,7 +39,6 @@ class PANGOLIN_EXPORT Uri : public Params
 public:
     std::string scheme;
     std::string url;
-    std::string full_uri;
 };
 
 //! Parse string as Video URI

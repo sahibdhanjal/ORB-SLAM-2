@@ -28,13 +28,11 @@
 #ifndef PLOTTER_H
 #define PLOTTER_H
 
-#include <limits>
-
-#include <pangolin/display/view.h>
-#include <pangolin/gl/colour.h>
 #include <pangolin/gl/gl.h>
-#include <pangolin/gl/glfont.h>
 #include <pangolin/gl/glsl.h>
+#include <pangolin/gl/colour.h>
+#include <pangolin/gl/glfont.h>
+#include <pangolin/display/view.h>
 #include <pangolin/handler/handler.h>
 #include <pangolin/plot/datalog.h>
 #include <pangolin/plot/range.h>
@@ -47,9 +45,8 @@ namespace pangolin
 enum DrawingMode
 {
     DrawingModePoints = GL_POINTS,
-    DrawingModeDashed = GL_LINES,
     DrawingModeLine = GL_LINE_STRIP,
-    DrawingModeNone,
+    DrawingModeDashed = GL_LINES,
 };
 
 struct Marker
@@ -163,8 +160,6 @@ public:
         const std::string &title = "$y", DataLog* log = nullptr
     );
 
-    std::string PlotTitleFromExpr(const std::string& expr) const;
-
     /// Remove all current markers
     void ClearMarkers();
 
@@ -179,9 +174,6 @@ public:
 
     void ClearImplicitPlots();
     void AddImplicitPlot();
-
-    /// Reset colour wheel to initial state. May be useful together with ClearSeries() / ClearMarkers()
-    void ResetColourWheel();
 
 protected:
     struct PANGOLIN_EXPORT Tick
