@@ -1,1 +1,0 @@
-/home/sahib/Documents/ORBSlam/Examples/ROS/workspace/devel/.private/catkin_tools_prebuild/setup.zsh

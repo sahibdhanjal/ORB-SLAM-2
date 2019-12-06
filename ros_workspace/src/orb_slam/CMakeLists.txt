@@ -65,12 +65,13 @@ catkin_package(
 ###########
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
+
 include_directories(
 include
 ${catkin_INCLUDE_DIRS}
 ${PROJECT_SOURCE_DIR}
-${PROJECT_SOURCE_DIR}/../../../../../
-${PROJECT_SOURCE_DIR}/../../../../../include
+${PROJECT_SOURCE_DIR}/../../../
+${PROJECT_SOURCE_DIR}/../../../include
 ${Pangolin_INCLUDE_DIRS}
 ${Boost_INCLUDE_DIRS}
 )
@@ -81,9 +82,9 @@ ${OpenCV_LIBS}
 ${EIGEN3_LIBS}
 ${Pangolin_LIBRARIES}
 ${Boost_LIBRARIES}
-${PROJECT_SOURCE_DIR}/../../../../../Thirdparty/DBoW2/lib/libDBoW2.so
-${PROJECT_SOURCE_DIR}/../../../../../Thirdparty/g2o/lib/libg2o.so
-${PROJECT_SOURCE_DIR}/../../../../../lib/libORB_SLAM2.so
+${PROJECT_SOURCE_DIR}/../../../Thirdparty/DBoW2/lib/libDBoW2.so
+${PROJECT_SOURCE_DIR}/../../../Thirdparty/g2o/lib/libg2o.so
+${PROJECT_SOURCE_DIR}/../../../lib/libORB_SLAM2.so
 )
 
 add_executable(mono_slam src/ros_mono.cc)
