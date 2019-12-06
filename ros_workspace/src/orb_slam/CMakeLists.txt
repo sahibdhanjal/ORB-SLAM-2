@@ -30,7 +30,7 @@ endif()
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED roscpp  geometry_msgs sensor_msgs image_transport cv_bridge tf)
+find_package(catkin REQUIRED roscpp  geometry_msgs tf2 tf2_ros sensor_msgs image_transport cv_bridge tf)
 find_package(OpenCV 3.0 QUIET)
 if(NOT OpenCV_FOUND)
     find_package(OpenCV 2.4.3 QUIET)
@@ -89,3 +89,6 @@ ${PROJECT_SOURCE_DIR}/../../../lib/libORB_SLAM2.so
 
 add_executable(mono_slam src/ros_mono.cc)
 target_link_libraries(mono_slam ${catkin_LIBRARIES} ${LIBS})
+
+add_executable(transform_broadcaster src/transforms.cc)
+target_link_libraries(transform_broadcaster ${catkin_LIBRARIES})

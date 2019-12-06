@@ -64,13 +64,11 @@ void ImageGrabber::GrabImage(const sensor_msgs::ImageConstPtr& msg)
                                 -pose.at<float>(1,0),  pose.at<float>(1,1),  pose.at<float>(1,2),
                                  pose.at<float>(2,0), -pose.at<float>(2,1), -pose.at<float>(2,2));
     tf::Vector3 rh_cameraTranslation(pose.at<float>(0,3), pose.at<float>(1,3), -pose.at<float>(2,3) );
-    tf::Matrix3x3 rotation270degZX(0, 0, 1, -1, 0, 0, 0,-1, 0);
-    rh_cameraPose *= rotation270degZX;
 
     tf::Quaternion q;
     rh_cameraPose.getRotation(q);
     geometry_msgs::PoseStamped p;
-    p.header.frame_id = "camera";
+    p.header.frame_id = "map";
     p.pose.position.x = rh_cameraTranslation[0];
     p.pose.position.y = rh_cameraTranslation[1];
     p.pose.position.z = rh_cameraTranslation[2];
@@ -100,7 +98,7 @@ void ImageGrabber::GrabImage(const sensor_msgs::ImageConstPtr& msg)
 
     // Publish Map PointCloud to ROS
     sensor_msgs::PointCloud map_pointcloud;
-    map_pointcloud.header.frame_id = "world";
+    map_pointcloud.header.frame_id = "map";
     std::vector<geometry_msgs::Point32> geo_map_points;
     std::vector<ORB_SLAM2::MapPoint*> map_points = mpSLAM->mpMap->GetAllMapPoints();
     for (std::vector<int>::size_type i = 0; i != map_points.size(); i++) {
@@ -118,7 +116,7 @@ void ImageGrabber::GrabImage(const sensor_msgs::ImageConstPtr& msg)
 
     // Publish Map Reference PointCloud to ROS
     sensor_msgs::PointCloud map_ref_pointcloud;
-    map_ref_pointcloud.header.frame_id = "world";
+    map_ref_pointcloud.header.frame_id = "map";
     std::vector<geometry_msgs::Point32> geo_map_ref_points;
     std::vector<ORB_SLAM2::MapPoint*> map_ref_points = mpSLAM->mpMap->GetReferenceMapPoints();
     for (std::vector<int>::size_type i = 0; i != map_ref_points.size(); i++) {
@@ -138,7 +136,7 @@ void ImageGrabber::GrabImage(const sensor_msgs::ImageConstPtr& msg)
 
 int main(int argc, char **argv)
 {
-    ros::init(argc, argv, "Mono");
+    ros::init(argc, argv, "mono_slam");
     ros::start(); ros::Rate loop_rate(30);
     ros::NodeHandle nodeHandler;
 
