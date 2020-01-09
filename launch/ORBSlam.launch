@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+
+<launch>
+	<arg name="vocabulary" default="$(find orb_slam)/vocabulary/ORBvoc.txt" />
+	<arg name="settings" default="$(find orb_slam)/config/camera_params.yaml" />
+	<param name="VOCAB_FILE" value="$(arg vocabulary)" />
+	<param name="SETTINGS_FILE" value="$(arg settings)" />
+	<node name="mono_slam" pkg="orb_slam" type="mono_slam" output="screen" />
+</launch>
